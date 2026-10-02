@@ -8,11 +8,6 @@ var Pairing = (function () {
     var heartbeat = null;
 
     function init(onReady) {
-        tvId = localStorage.getItem('broadcaster.tvId');
-        if (!tvId) {
-            tvId = uuid();
-            localStorage.setItem('broadcaster.tvId', tvId);
-        }
         currentCode = localStorage.getItem('broadcaster.pairCode') || randomCode();
         var label = document.getElementById('room-code');
         if (label) label.textContent = currentCode;
@@ -25,10 +20,20 @@ var Pairing = (function () {
         if (typeof I18n !== 'undefined') I18n.apply();
 
         document.addEventListener('visibilitychange', onVisibility);
-        claimCode(currentCode).then(function () {
+
+        TvAuth.init().then(function (account) {
+            tvId = account.uid;
+            return claimCode(currentCode);
+        }).then(function () {
             if (heartbeat) clearInterval(heartbeat);
             heartbeat = setInterval(beat, 10000);
             if (onReady) onReady(tvId);
+        }).catch(function (err) {
+            if (label) label.textContent = '------';
+            Utils.showToast({
+                title: I18n.t('errorTitle'),
+                message: err.message
+            });
         });
     }
 
@@ -134,57 +139,55 @@ var Pairing = (function () {
         return text;
     }
 
-    function uuid() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            var r = Math.random() * 16 | 0;
-            var v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    }
-
     function restGet(url) {
-        return new Promise(function (resolve) {
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', url + '.json?t=' + Date.now(), true);
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState !== 4) return;
-                if (xhr.status < 200 || xhr.status >= 300) {
-                    resolve(null);
-                    return;
-                }
-                try { resolve(JSON.parse(xhr.responseText)); }
-                catch (e) { resolve(null); }
-            };
-            xhr.send();
+        return TvAuth.token().then(function (token) {
+            return new Promise(function (resolve) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', url + '.json?auth=' + token + '&t=' + Date.now(), true);
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState !== 4) return;
+                    if (xhr.status < 200 || xhr.status >= 300) {
+                        resolve(null);
+                        return;
+                    }
+                    try { resolve(JSON.parse(xhr.responseText)); }
+                    catch (e) { resolve(null); }
+                };
+                xhr.send();
+            });
         });
     }
 
     function restPut(url, data) {
-        return new Promise(function (resolve, reject) {
-            var xhr = new XMLHttpRequest();
-            xhr.open('PUT', url + '.json', true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState === 4) {
-                    if (xhr.status >= 200 && xhr.status < 300) resolve();
-                    else reject(new Error('PUT failed: ' + xhr.status));
-                }
-            };
-            xhr.send(JSON.stringify(data));
+        return TvAuth.token().then(function (token) {
+            return new Promise(function (resolve, reject) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('PUT', url + '.json?auth=' + token, true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status >= 200 && xhr.status < 300) resolve();
+                        else reject(new Error('PUT failed: ' + xhr.status));
+                    }
+                };
+                xhr.send(JSON.stringify(data));
+            });
         });
     }
 
     function restDelete(url) {
-        return new Promise(function (resolve, reject) {
-            var xhr = new XMLHttpRequest();
-            xhr.open('DELETE', url + '.json', true);
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState === 4) {
-                    if (xhr.status >= 200 && xhr.status < 300) resolve();
-                    else reject(new Error('DELETE failed: ' + xhr.status));
-                }
-            };
-            xhr.send();
+        return TvAuth.token().then(function (token) {
+            return new Promise(function (resolve, reject) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('DELETE', url + '.json?auth=' + token, true);
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status >= 200 && xhr.status < 300) resolve();
+                        else reject(new Error('DELETE failed: ' + xhr.status));
+                    }
+                };
+                xhr.send();
+            });
         });
     }
 

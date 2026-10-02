@@ -1,16 +1,6 @@
 var Utils = (function () {
     'use strict';
 
-    function generateRoomCode(length) {
-        length = length || 6;
-        var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-        var code = '';
-        for (var i = 0; i < length; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return code;
-    }
-
     function showScreen(id) {
         var screens = document.querySelectorAll('.screen');
         for (var i = 0; i < screens.length; i++) {
@@ -105,52 +95,13 @@ var Utils = (function () {
         return 'unknown';
     }
 
-    function resolveUrl(base, relative) {
-        try {
-            return new URL(relative, base).href;
-        } catch (e) {
-            return relative;
-        }
-    }
-
-    function debounce(fn, delay) {
-        var timer;
-        return function () {
-            var args = arguments;
-            var ctx = this;
-            clearTimeout(timer);
-            timer = setTimeout(function () {
-                fn.apply(ctx, args);
-            }, delay);
-        };
-    }
-
-    function loadStoredRoomCode() {
-        try {
-            return localStorage.getItem('broadcaster_room_code') || null;
-        } catch (e) {
-            return null;
-        }
-    }
-
-    function saveRoomCode(code) {
-        try {
-            localStorage.setItem('broadcaster_room_code', code);
-        } catch (e) {  }
-    }
-
     return {
-        generateRoomCode: generateRoomCode,
         showScreen: showScreen,
         showToast: showToast,
         hideToast: hideToast,
         formatTime: formatTime,
         truncate: truncate,
         isDirectStream: isDirectStream,
-        getStreamType: getStreamType,
-        resolveUrl: resolveUrl,
-        debounce: debounce,
-        loadStoredRoomCode: loadStoredRoomCode,
-        saveRoomCode: saveRoomCode
+        getStreamType: getStreamType
     };
 })();

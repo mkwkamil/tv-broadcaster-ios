@@ -95,7 +95,7 @@ final class BrowserViewModel: ObservableObject {
         }
         toast = LanguageStore.shared.t("preparing")
         do {
-            let playURL = try await StreamTicket.playURL(for: stream)
+            let playURL = try await StreamTicket.playURL(for: stream, token: token)
             try await TVChannel.send(url: playURL, referer: stream.page, tvId: tvId, token: token)
             toast = LanguageStore.shared.t("sent")
             return playURL.absoluteString

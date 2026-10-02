@@ -4,6 +4,7 @@
   },
   "auth": {
     "providers": {
+      "anonymous": true,
       "emailPassword": true,
       "googleSignIn": {
         "oAuthBrandDisplayName": "Broadcaster",

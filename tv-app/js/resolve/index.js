@@ -16,24 +16,20 @@ var ResolverChain = (function () {
 
         if (ResolveUtils.isOurProxy(url)) {
             return Promise.resolve(ResolveUtils.makeResult(url, {
-                referer: options.referer || '',
-                needsReferer: false
+                referer: options.referer || ''
             }));
         }
 
-        if (Utils.getStreamType(url) === 'hls' && options.referer) {
-            return ResolveUtils.mintTicket(url, options.referer).then(function (play) {
-                return ResolveUtils.makeResult(play || url, {
-                    referer: options.referer,
-                    needsReferer: !play
-                });
-            });
+        if (!options.referer) {
+            return Promise.resolve(ResolveUtils.makeResult(url, {}));
         }
 
-        return Promise.resolve(ResolveUtils.makeResult(url, {
-            referer: options.referer || '',
-            needsReferer: !!options.referer
-        }));
+        return ResolveUtils.mintTicket(url, options.referer).then(function (play) {
+            return ResolveUtils.makeResult(play || url, {
+                referer: options.referer,
+                proxyUrl: play ? url : ''
+            });
+        });
     }
 
     return { resolve: resolve };

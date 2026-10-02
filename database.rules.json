@@ -1,19 +1,5 @@
 {
   "rules": {
-    "rooms": {
-      "$roomCode": {
-        ".read": true,
-        ".write": true,
-        "queue": {
-          "$itemId": {
-            ".validate": "newData.hasChildren(['url', 'timestamp']) && newData.child('url').isString() && newData.child('url').val().length > 0 && newData.child('url').val().length < 4096 && newData.child('timestamp').isNumber()"
-          }
-        },
-        "status": {
-          ".validate": "newData.hasChildren(['state', 'timestamp']) && newData.child('state').isString() && newData.child('timestamp').isNumber()"
-        }
-      }
-    },
     "users": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
@@ -23,33 +9,36 @@
     "codes": {
       "$code": {
         ".read": "auth != null",
-        ".write": true,
-        ".validate": "newData.hasChildren(['tvId', 'accepting']) && newData.child('tvId').isString() && newData.child('tvId').val().length > 8 && newData.child('accepting').isBoolean()"
+        ".write": "auth != null && ((newData.exists() && newData.child('tvId').val() === auth.uid && (!data.exists() || data.child('tvId').val() === auth.uid)) || (!newData.exists() && data.child('tvId').val() === auth.uid))",
+        ".validate": "newData.hasChildren(['tvId', 'accepting']) && newData.child('tvId').val() === auth.uid && newData.child('accepting').isBoolean()"
       }
     },
     "tvs": {
       "$tvId": {
         "presence": {
           ".read": "auth != null",
-          ".write": true,
+          ".write": "auth != null && auth.uid === $tvId",
           ".validate": "newData.hasChildren(['online', 'lastSeen', 'code', 'accepting']) && newData.child('online').isBoolean() && newData.child('lastSeen').isNumber() && newData.child('code').isString() && newData.child('code').val().length === 6 && newData.child('accepting').isBoolean()"
         },
         "trusted": {
-          ".read": true,
+          ".read": "auth != null && auth.uid === $tvId",
+          ".write": "auth != null && auth.uid === $tvId && !newData.exists()",
           "$uid": {
-            ".write": "(auth != null && auth.uid === $uid && newData.hasChildren(['pairedAt']) && newData.child('pairedAt').isNumber()) || !newData.exists()"
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $tvId)",
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "!newData.exists() || (newData.hasChildren(['pairedAt']) && newData.child('pairedAt').isNumber())"
           }
         },
         "queue": {
-          ".read": true,
+          ".read": "auth != null && auth.uid === $tvId",
           "$itemId": {
-            ".write": "(auth != null && root.child('tvs').child($tvId).child('trusted').child(auth.uid).exists() && newData.child('status').val() === 'pending') || (data.exists() && newData.child('status').val() === 'consumed')",
+            ".write": "auth != null && ((root.child('tvs').child($tvId).child('trusted').child(auth.uid).exists() && newData.child('status').val() === 'pending') || auth.uid === $tvId)",
             ".validate": "newData.hasChildren(['url', 'timestamp']) && newData.child('url').isString() && newData.child('url').val().length > 0 && newData.child('url').val().length < 4096 && newData.child('timestamp').isNumber() && (!newData.child('referer').exists() || newData.child('referer').isString())"
           }
         },
         "status": {
-          ".read": true,
-          ".write": true,
+          ".read": "auth != null && auth.uid === $tvId",
+          ".write": "auth != null && auth.uid === $tvId",
           ".validate": "newData.hasChildren(['state', 'timestamp']) && newData.child('state').isString() && newData.child('timestamp').isNumber()"
         }
       }

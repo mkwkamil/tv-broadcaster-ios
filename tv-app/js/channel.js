@@ -32,35 +32,42 @@ var Channel = (function () {
 
     function openPhoneStream() {
         if (typeof EventSource === 'undefined') return;
-        try {
-            if (phoneSource) {
-                phoneSource.close();
-                phoneSource = null;
-            }
-            phoneSource = new EventSource(roomPath('trusted') + '.json');
-            phoneSource.addEventListener('put', function () {
+        TvAuth.token().then(function (token) {
+            try {
+                if (phoneSource) {
+                    phoneSource.close();
+                    phoneSource = null;
+                }
+                phoneSource = new EventSource(roomPath('trusted') + '.json?auth=' + token);
+                phoneSource.addEventListener('put', function () {
+                    refreshTrusted();
+                });
+                phoneSource.addEventListener('patch', function () {
+                    refreshTrusted();
+                });
+                phoneSource.addEventListener('auth_revoked', function () {
+                    openPhoneStream();
+                });
                 refreshTrusted();
-            });
-            phoneSource.addEventListener('patch', function () {
-                refreshTrusted();
-            });
-            refreshTrusted();
-        } catch (e) {  }
+            } catch (e) {  }
+        }).catch(function () {  });
     }
 
     function refreshTrusted() {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', roomPath('trusted') + '.json?t=' + Date.now(), true);
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== 4 || xhr.status !== 200) return;
-            var data = null;
-            try { data = JSON.parse(xhr.responseText); } catch (e) { data = null; }
-            var connected = !!(data && typeof data === 'object' && Object.keys(data).length > 0);
-            if (typeof Pairing !== 'undefined' && Pairing.setConnected) {
-                Pairing.setConnected(connected);
-            }
-        };
-        xhr.send();
+        TvAuth.token().then(function (token) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', roomPath('trusted') + '.json?auth=' + token + '&t=' + Date.now(), true);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState !== 4 || xhr.status !== 200) return;
+                var data = null;
+                try { data = JSON.parse(xhr.responseText); } catch (e) { data = null; }
+                var connected = !!(data && typeof data === 'object' && Object.keys(data).length > 0);
+                if (typeof Pairing !== 'undefined' && Pairing.setConnected) {
+                    Pairing.setConnected(connected);
+                }
+            };
+            xhr.send();
+        }).catch(function () {  });
     }
 
     function startListening() {
@@ -72,24 +79,32 @@ var Channel = (function () {
     }
 
     function startSSE() {
-        var url = roomPath('queue') + '.json';
-        try {
-            eventSource = new EventSource(url);
-            eventSource.addEventListener('put', handleSSEEvent);
-            eventSource.addEventListener('patch', handleSSEEvent);
-            eventSource.onerror = function () {
+        TvAuth.token().then(function (token) {
+            try {
+                eventSource = new EventSource(roomPath('queue') + '.json?auth=' + token);
+                eventSource.addEventListener('put', handleSSEEvent);
+                eventSource.addEventListener('patch', handleSSEEvent);
+                eventSource.addEventListener('auth_revoked', function () {
+                    if (eventSource) {
+                        eventSource.close();
+                        eventSource = null;
+                    }
+                    startSSE();
+                });
+                eventSource.onerror = function () {
 
-                if (eventSource && eventSource.readyState !== 2) return;
+                    if (eventSource && eventSource.readyState !== 2) return;
 
-                if (eventSource) {
-                    eventSource.close();
-                    eventSource = null;
-                }
+                    if (eventSource) {
+                        eventSource.close();
+                        eventSource = null;
+                    }
+                    startPolling();
+                };
+            } catch (e) {
                 startPolling();
-            };
-        } catch (e) {
-            startPolling();
-        }
+            }
+        }).catch(startPolling);
     }
 
     function handleSSEEvent(event) {
@@ -128,17 +143,19 @@ var Channel = (function () {
     }
 
     function fetchQueue() {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', roomPath('queue') + '.json?t=' + Date.now(), true);
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState === 4 && xhr.status === 200) {
-                try {
-                    var data = JSON.parse(xhr.responseText);
-                    processQueueData(data);
-                } catch (e) {  }
-            }
-        };
-        xhr.send();
+        TvAuth.token().then(function (token) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', roomPath('queue') + '.json?auth=' + token + '&t=' + Date.now(), true);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        processQueueData(data);
+                    } catch (e) {  }
+                }
+            };
+            xhr.send();
+        }).catch(function () {  });
     }
 
     function processQueueData(data) {
@@ -187,32 +204,27 @@ var Channel = (function () {
     }
 
     function restPut(url, data) {
-        return new Promise(function (resolve, reject) {
-            var xhr = new XMLHttpRequest();
-            xhr.open('PUT', url + '.json', true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState === 4) {
-                    if (xhr.status >= 200 && xhr.status < 300) resolve();
-                    else reject(new Error('PUT failed: ' + xhr.status));
-                }
-            };
-            xhr.send(JSON.stringify(data));
-        });
+        return restWrite('PUT', url, data);
     }
 
     function restPatch(url, data) {
-        return new Promise(function (resolve, reject) {
-            var xhr = new XMLHttpRequest();
-            xhr.open('PATCH', url + '.json', true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState === 4) {
-                    if (xhr.status >= 200 && xhr.status < 300) resolve();
-                    else reject(new Error('PATCH failed: ' + xhr.status));
-                }
-            };
-            xhr.send(JSON.stringify(data));
+        return restWrite('PATCH', url, data);
+    }
+
+    function restWrite(method, url, data) {
+        return TvAuth.token().then(function (token) {
+            return new Promise(function (resolve, reject) {
+                var xhr = new XMLHttpRequest();
+                xhr.open(method, url + '.json?auth=' + token, true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status >= 200 && xhr.status < 300) resolve();
+                        else reject(new Error(method + ' failed: ' + xhr.status));
+                    }
+                };
+                xhr.send(JSON.stringify(data));
+            });
         });
     }
 

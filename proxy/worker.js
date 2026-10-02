@@ -1,6 +1,9 @@
-import AGENT_SOURCE from './agent.js';
+const PROJECT_ID = 'tizenos-broadcast';
+const JWKS_URL = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
 
 const tickets = new Map();
+let jwks = null;
+let jwksFetchedAt = 0;
 
 const BROWSER_UA =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
@@ -15,7 +18,14 @@ export default {
         const url = new URL(request.url);
 
         try {
-            if (request.method === 'POST' && url.pathname === '/ticket') {
+            if (url.pathname === '/ticket') {
+                if (request.method !== 'POST') {
+                    return new Response('Method not allowed', { status: 405, headers: corsHeaders() });
+                }
+                const caller = await verifyIdToken(request);
+                if (!caller) {
+                    return new Response('Unauthorized', { status: 401, headers: corsHeaders() });
+                }
                 return await createTicket(request);
             }
 
@@ -24,104 +34,87 @@ export default {
                 return await serveTicket(request, ticketed[1], ticketed[2]);
             }
 
-            const target = url.searchParams.get('url');
-            if (!target) {
-                return new Response('Missing url parameter', { status: 400 });
-            }
-
-            if (url.pathname === '/page') {
-                return await servePage(request, target, url);
-            }
-            return await serveRaw(request, target, url.searchParams.get('referer') || '');
+            return new Response('Not found', { status: 404, headers: corsHeaders() });
         } catch (err) {
             return new Response('Proxy error: ' + err.message, { status: 502 });
         }
     }
 };
 
-async function servePage(request, target, requestUrl) {
-    const headers = withCookies(request, {
-        'User-Agent': request.headers.get('user-agent') || BROWSER_UA,
-        'Referer': new URL(target).origin + '/',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': request.headers.get('accept-language') || 'pl-PL,pl;q=0.9,en;q=0.8'
-    });
+async function verifyIdToken(request) {
+    const header = request.headers.get('authorization') || '';
+    const match = header.match(/^Bearer\s+(.+)$/i);
+    if (!match) return null;
 
-    const init = {
-        method: request.method === 'HEAD' ? 'HEAD' : request.method,
-        headers,
-        redirect: 'follow'
-    };
+    const parts = match[1].split('.');
+    if (parts.length !== 3) return null;
 
-    if (request.method !== 'GET' && request.method !== 'HEAD') {
-        const contentType = request.headers.get('content-type');
-        if (contentType) headers['Content-Type'] = contentType;
-        init.body = await request.arrayBuffer();
+    let head;
+    let claims;
+    try {
+        head = JSON.parse(decodeSegment(parts[0]));
+        claims = JSON.parse(decodeSegment(parts[1]));
+    } catch (e) {
+        return null;
     }
 
-    const upstream = await fetch(target, init);
+    if (head.alg !== 'RS256' || !head.kid) return null;
+    if (claims.aud !== PROJECT_ID) return null;
+    if (claims.iss !== 'https://securetoken.google.com/' + PROJECT_ID) return null;
+    if (!claims.sub) return null;
 
-    const contentType = upstream.headers.get('content-type') || '';
-    if (!contentType.includes('text/html')) {
-        return passthrough(upstream, target);
-    }
+    const now = Math.floor(Date.now() / 1000);
+    if (!claims.exp || claims.exp <= now) return null;
 
-    const pageUrl = upstream.url || target;
-    const rewritten = rewriteNavAttrs(await upstream.text(), pageUrl, requestUrl.origin);
-    const injected = injectAgent(rewritten, pageUrl, {
-        proxyOrigin: requestUrl.origin,
-        room: requestUrl.searchParams.get('room') || '',
-        dbUrl: requestUrl.searchParams.get('db') || ''
-    });
+    const jwk = await publicKey(head.kid);
+    if (!jwk) return null;
 
-    const responseHeaders = new Headers(corsHeaders());
-    responseHeaders.set('Content-Type', 'text/html; charset=utf-8');
-    responseHeaders.set('Cache-Control', 'no-store');
-    relayCookies(upstream, responseHeaders);
+    const key = await crypto.subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: 'RS256', ext: true },
+        { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+        false,
+        ['verify']
+    );
 
-    return new Response(injected, { status: upstream.status, headers: responseHeaders });
+    const valid = await crypto.subtle.verify(
+        'RSASSA-PKCS1-v1_5',
+        key,
+        base64UrlToBytes(parts[2]),
+        new TextEncoder().encode(parts[0] + '.' + parts[1])
+    );
+
+    return valid ? claims.sub : null;
 }
 
-async function serveRaw(request, target, referer) {
-    const headers = withCookies(request, {
-        'User-Agent': request.headers.get('user-agent') || BROWSER_UA,
-        'Accept': request.headers.get('accept') || '*/*'
-    });
-
-    if (referer) {
-        headers['Referer'] = referer;
-        headers['Origin'] = new URL(referer).origin;
+async function publicKey(kid) {
+    if (!jwks || Date.now() - jwksFetchedAt > 3600000) {
+        const response = await fetch(JWKS_URL);
+        if (!response.ok) return null;
+        jwks = await response.json();
+        jwksFetchedAt = Date.now();
     }
+    return (jwks.keys || []).find((key) => key.kid === kid) || null;
+}
 
-    const range = request.headers.get('range');
-    if (range) headers['Range'] = range;
+function base64UrlToBytes(value) {
+    const padded = value.replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(padded + '='.repeat((4 - padded.length % 4) % 4));
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    return bytes;
+}
 
-    const init = {
-        method: request.method === 'HEAD' ? 'HEAD' : request.method,
-        headers,
-        redirect: 'follow'
-    };
-    if (request.method !== 'GET' && request.method !== 'HEAD') {
-        const contentType = request.headers.get('content-type');
-        if (contentType) headers['Content-Type'] = contentType;
-        init.body = await request.arrayBuffer();
-    }
-
-    const upstream = await fetch(target, init);
-
-    if (request.method !== 'HEAD' && isPlaylist(target, upstream)) {
-        const requestUrl = new URL(request.url);
-        return servePlaylist(upstream, target, referer, requestUrl.origin, {
-            flatten: requestUrl.searchParams.get('flatten') === '1',
-            headers
-        });
-    }
-
-    return passthrough(upstream, target);
+function decodeSegment(value) {
+    return new TextDecoder().decode(base64UrlToBytes(value));
 }
 
 function isM3u(text) {
     return /^\s*#EXTM3U/i.test(text || '');
+}
+
+function looksLikePlaylist(url) {
+    return /\.m3u8(\?|#|$)/i.test(url || '');
 }
 
 function rewritePlaylistText(text, base, rewrite) {
@@ -150,12 +143,12 @@ function rewritePlaylistText(text, base, rewrite) {
 
 function isPlaylist(target, upstream) {
     const type = (upstream.headers.get('content-type') || '').toLowerCase();
-    return /\.m3u8(\?|#|$)/i.test(target) ||
+    return looksLikePlaylist(target) ||
         type.includes('mpegurl') ||
         type.includes('x-mpegurl');
 }
 
-async function servePlaylist(upstream, target, referer, proxyOrigin, options) {
+async function servePlaylist(upstream, target, proxyOrigin, options) {
     options = options || {};
 
     let base = upstream.url || target;
@@ -183,23 +176,13 @@ async function servePlaylist(upstream, target, referer, proxyOrigin, options) {
         });
     }
 
-    const rewrite = options.rewrite || function (absolute) {
-        return toProxied(absolute, referer, proxyOrigin);
-    };
-
-    const rewritten = rewritePlaylistText(text, base, rewrite);
+    const rewritten = rewritePlaylistText(text, base, options.rewrite);
 
     const headers = new Headers(corsHeaders());
     headers.set('Content-Type', 'application/vnd.apple.mpegurl');
     headers.set('Cache-Control', 'no-store');
 
     return new Response(rewritten, { status: upstream.status, headers });
-}
-
-function toProxied(absolute, referer, proxyOrigin) {
-    return proxyOrigin + '/s/' + fileNameOf(absolute) +
-        '?url=' + encodeURIComponent(absolute) +
-        (referer ? '&referer=' + encodeURIComponent(referer) : '');
 }
 
 function pickVariant(text, base) {
@@ -246,30 +229,26 @@ function fileNameOf(url) {
 
 async function createTicket(request) {
     const body = await request.json();
-    if (!body || !body.url) {
+    if (!body || !body.url || !/^https?:\/\//i.test(body.url)) {
         return new Response('Missing url', { status: 400, headers: corsHeaders() });
     }
 
     const id = randomId();
     const origin = new URL(request.url).origin;
-    const cookie = [request.headers.get('cookie'), body.cookie]
-        .filter(Boolean)
-        .join('; ');
 
     const ticket = {
         url: body.url,
         referer: body.referer || '',
-        cookie: cookie,
-        userAgent: body.userAgent || request.headers.get('user-agent') || BROWSER_UA,
+        cookie: body.cookie || '',
+        userAgent: body.userAgent || BROWSER_UA,
         parts: {},
         playlist: ''
     };
 
     try {
-
         if (body.playlist && isM3u(body.playlist)) {
             applyUploadedPlaylist(ticket, body.playlist, body.base || body.url, origin, id);
-        } else {
+        } else if (looksLikePlaylist(body.url)) {
             await snapshotPlaylist(ticket, origin, id);
         }
     } catch (err) {
@@ -280,9 +259,11 @@ async function createTicket(request) {
     }
 
     await putTicket(id, ticket);
+
+    const name = ticket.playlist ? 'master.m3u8' : fileNameOf(ticket.url);
     return new Response(JSON.stringify({
         id: id,
-        play: origin + '/t/' + id + '/master.m3u8'
+        play: origin + '/t/' + id + '/' + name
     }), {
         headers: { ...corsHeaders(), 'Content-Type': 'application/json' }
     });
@@ -365,7 +346,7 @@ async function serveTicket(request, id, name) {
         });
     }
 
-    const target = name === 'master.m3u8' ? ticket.url : ticket.parts[name];
+    const target = ticket.parts[name] || (ticket.playlist ? null : ticket.url);
     if (!target) {
         return new Response('Unknown part', { status: 404, headers: corsHeaders() });
     }
@@ -381,7 +362,7 @@ async function serveTicket(request, id, name) {
 
     if (request.method !== 'HEAD' && isPlaylist(target, upstream)) {
         const pending = {};
-        return servePlaylist(upstream, target, ticket.referer, origin, {
+        const response = await servePlaylist(upstream, target, origin, {
             flatten: true,
             headers,
             rewrite: function (absolute) {
@@ -389,11 +370,10 @@ async function serveTicket(request, id, name) {
                 pending[key] = absolute;
                 return origin + '/t/' + id + '/' + key;
             }
-        }).then(async (response) => {
-            ticket.parts = Object.assign(ticket.parts || {}, pending);
-            await putTicket(id, ticket);
-            return response;
         });
+        ticket.parts = Object.assign(ticket.parts || {}, pending);
+        await putTicket(id, ticket);
+        return response;
     }
 
     return passthrough(upstream, target);
@@ -409,7 +389,7 @@ function partKey(url) {
 }
 
 function randomId() {
-    const bytes = crypto.getRandomValues(new Uint8Array(8));
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
     return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -442,105 +422,28 @@ async function getTicket(id) {
     }
 }
 
-function withCookies(request, headers) {
-    const cookie = request.headers.get('cookie');
-    if (cookie) headers['Cookie'] = cookie;
-    return headers;
-}
-
-function relayCookies(upstream, headers) {
-    const cookies = upstream.headers.getSetCookie
-        ? upstream.headers.getSetCookie()
-        : [];
-
-    for (const raw of cookies) {
-        const cleaned = raw
-            .split(';')
-            .filter((part) => !/^\s*domain=/i.test(part))
-            .join(';');
-        headers.append('Set-Cookie', cleaned + '; Secure; SameSite=None');
-    }
-}
-
 function passthrough(upstream, target) {
     const headers = new Headers(upstream.headers);
     headers.set('Access-Control-Allow-Origin', '*');
     headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     headers.set('Access-Control-Expose-Headers', '*');
 
+    headers.delete('set-cookie');
     headers.delete('x-frame-options');
     headers.delete('content-security-policy');
     headers.delete('content-security-policy-report-only');
 
-    headers.delete('set-cookie');
-    relayCookies(upstream, headers);
-
-    if (target && target.includes('.m3u8')) {
+    if (target && looksLikePlaylist(target)) {
         headers.set('Content-Type', 'application/vnd.apple.mpegurl');
     }
 
     return new Response(upstream.body, { status: upstream.status, headers });
 }
 
-function rewriteNavAttrs(html, pageUrl, origin) {
-    function wrap(raw) {
-        if (!raw || raw.charAt(0) === '#') return null;
-        if (/^(javascript:|data:|blob:|mailto:)/i.test(raw)) return null;
-        try {
-            const abs = new URL(raw, pageUrl).href;
-            if (!/^https?:/i.test(abs)) return null;
-            if (abs.indexOf(origin) === 0) return null;
-            return origin + '/page?url=' + encodeURIComponent(abs);
-        } catch (e) {
-            return null;
-        }
-    }
-
-    const rewritten = html.replace(
-        /(<(?:a|area|iframe|form)\b[^>]*?\b(?:href|src|action)\s*=\s*)(["'])([^"']+)\2/gi,
-        function (whole, pre, quote, val) {
-            const next = wrap(val);
-            return next ? pre + quote + next + quote : whole;
-        }
-    );
-
-    return rewritten.replace(/<a\b[^>]*>/gi, function (tag) {
-        return tag
-            .replace(/\s+target\s*=\s*(['"]?)[^'"\s>]+\1/gi, '')
-            .replace(/\s+rel\s*=\s*(['"]?)[^'"]*\1/gi, '');
-    });
-}
-
-function injectAgent(html, pageUrl, context) {
-    const agent = AGENT_SOURCE
-        .split('__PROXY_ORIGIN__').join(context.proxyOrigin)
-        .split('__PAGE_URL__').join(pageUrl)
-        .split('__PAGE_PATH__').join('/page')
-        .split('__RAW_PATH__').join('/raw')
-        .split('__ROOM__').join(context.room || '')
-        .split('__DB_URL__').join(context.dbUrl || '')
-        .split('__TICKET_ORIGIN__').join(context.ticketOrigin || context.proxyOrigin);
-
-    const head =
-        '<base href="' + escapeAttribute(pageUrl) + '">' +
-        '<script>' + agent + '</script>';
-
-    const match = /<head[^>]*>/i.exec(html);
-    if (match) {
-        const at = match.index + match[0].length;
-        return html.slice(0, at) + head + html.slice(at);
-    }
-    return head + html;
-}
-
-function escapeAttribute(value) {
-    return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-}
-
 function corsHeaders() {
     return {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
-        'Access-Control-Allow-Headers': '*'
+        'Access-Control-Allow-Headers': 'authorization, content-type'
     };
 }

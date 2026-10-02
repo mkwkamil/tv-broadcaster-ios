@@ -29,11 +29,21 @@ final class AccountSession: ObservableObject {
         expiresAt = stored.expiresAt
         uid = stored.uid
         email = stored.email
+        displayName = stored.name
+        termsAccepted = stored.termsAccepted ?? false
+
         if expiresAt <= Date() {
             do {
                 _ = try await validToken()
+            } catch let error as AccountError {
+                if error.meansAccountGone {
+                    signOut()
+                } else {
+                    profileReady = true
+                }
+                return
             } catch {
-                signOut()
+                profileReady = true
                 return
             }
         }
@@ -119,6 +129,7 @@ final class AccountSession: ObservableObject {
             displayName = trimmed
             termsAccepted = true
             profileReady = true
+            persistSession()
         } catch {
             errorMessage = error.localizedDescription
             profileReady = true
@@ -223,11 +234,6 @@ final class AccountSession: ObservableObject {
         }
         do {
             let token = try await validToken()
-            let exists = try await accountExists(token: token)
-            if !exists {
-                signOut()
-                return
-            }
             let record = try await FirebaseREST.get("users/\(uid)", token: token) as? [String: Any]
             displayName = record?["name"] as? String
             termsAccepted = record?["termsAcceptedAt"] != nil
@@ -240,33 +246,20 @@ final class AccountSession: ObservableObject {
                     token: token
                 )
             }
+            persistSession()
+        } catch let error as AccountError {
+            if error.meansAccountGone {
+                signOut()
+                return
+            }
         } catch let error as FirebaseRESTError {
             if case .http(let code) = error, code == 401 || code == 403 {
                 signOut()
                 return
             }
-            termsAccepted = true
         } catch {
-            signOut()
-            return
         }
         profileReady = true
-    }
-
-    private func accountExists(token: String) async throws -> Bool {
-        do {
-            _ = try await AuthAPI.post(
-                url: "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=\(AppConfig.firebaseAPIKey)",
-                json: ["idToken": token],
-                form: nil
-            )
-            return true
-        } catch let error as AccountError {
-            if error.errorDescription == LanguageStore.text("signInFail") {
-                return false
-            }
-            throw error
-        }
     }
 
     private func apply(idToken: String, refreshToken: String, expiresIn: Any?, uid: String, email: String) {
@@ -277,12 +270,19 @@ final class AccountSession: ObservableObject {
         self.expiresAt = expiry
         self.uid = uid
         self.email = email.nilIfEmpty
+        persistSession()
+    }
+
+    private func persistSession() {
+        guard let idToken, let refreshToken, let uid else { return }
         KeychainStore.save(StoredSession(
             idToken: idToken,
             refreshToken: refreshToken,
-            expiresAt: expiry,
+            expiresAt: expiresAt,
             uid: uid,
-            email: email
+            email: email ?? "",
+            name: displayName,
+            termsAccepted: termsAccepted
         ))
     }
 }
@@ -296,11 +296,33 @@ private extension String {
 enum AccountError: LocalizedError {
     case signedOut
     case message(String)
+    case server(code: String, text: String)
+
+    private static let goneCodes: Set<String> = [
+        "USER_NOT_FOUND",
+        "USER_DELETED",
+        "USER_DISABLED",
+        "INVALID_ID_TOKEN",
+        "TOKEN_EXPIRED",
+        "INVALID_REFRESH_TOKEN",
+        "INVALID_GRANT_TYPE",
+        "MISSING_REFRESH_TOKEN",
+        "CREDENTIAL_TOO_OLD_LOGIN_AGAIN"
+    ]
 
     var errorDescription: String? {
         switch self {
         case .signedOut: return LanguageStore.text("signInAgain")
         case .message(let text): return text
+        case .server(_, let text): return text
+        }
+    }
+
+    var meansAccountGone: Bool {
+        switch self {
+        case .signedOut: return true
+        case .message: return false
+        case .server(let code, _): return Self.goneCodes.contains(code)
         }
     }
 }
@@ -322,9 +344,19 @@ private enum AuthAPI {
             throw AccountError.message(LanguageStore.text("noReply"))
         }
         guard (200..<300).contains(http.statusCode) else {
-            throw AccountError.message(message(from: data))
+            let code = serverCode(from: data)
+            throw AccountError.server(code: code, text: message(for: code))
         }
         return data
+    }
+
+    private static func serverCode(from data: Data) -> String {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let error = json["error"] as? [String: Any],
+              let raw = error["message"] as? String else {
+            return ""
+        }
+        return raw.split(separator: " ").first.map(String.init) ?? raw
     }
 
     static func object(from data: Data) throws -> [String: Any] {
@@ -334,13 +366,7 @@ private enum AuthAPI {
         return json
     }
 
-    static func message(from data: Data) -> String {
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let error = json["error"] as? [String: Any],
-              let raw = error["message"] as? String else {
-            return LanguageStore.text("signInFail")
-        }
-        let code = raw.split(separator: " ").first.map(String.init) ?? raw
+    static func message(for code: String) -> String {
         switch code {
         case "EMAIL_EXISTS": return LanguageStore.text("emailTaken")
         case "INVALID_EMAIL": return LanguageStore.text("badEmail")
@@ -360,6 +386,8 @@ private struct StoredSession: Codable {
     var expiresAt: Date
     var uid: String
     var email: String
+    var name: String?
+    var termsAccepted: Bool?
 }
 
 private enum KeychainStore {

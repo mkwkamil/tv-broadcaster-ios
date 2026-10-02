@@ -7,7 +7,7 @@ enum StreamTicket {
         let base: URL
     }
 
-    static func playURL(for stream: DetectedStream) async throws -> URL {
+    static func playURL(for stream: DetectedStream, token: String) async throws -> URL {
         guard needsTicket(stream.url) else { return stream.url }
 
         let snapshot = try await fetchMediaPlaylist(url: stream.url, referer: stream.page)
@@ -17,6 +17,7 @@ enum StreamTicket {
         var request = URLRequest(url: URL(string: AppConfig.proxyURL + "/ticket")!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONSerialization.data(withJSONObject: [
             "url": stream.url.absoluteString,
             "referer": stream.page?.absoluteString ?? "",
