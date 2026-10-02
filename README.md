@@ -1,29 +1,30 @@
 # Broadcaster
 
-Send a video from an iPhone browser to a Samsung TV. The phone finds a playable file on the page. The TV plays it with AVPlay, without the page’s ads.
-
-Three pieces share one Firebase room:
+Send a video from an iPhone to a Samsung TV. The phone finds a playable file on the page. The TV plays that file with AVPlay, without the page’s ads.
 
 | Piece | Path | Role |
 | --- | --- | --- |
-| iOS app | `Broadcaster/` | Browser, favorites, and the Play button |
-| TV app | `tv-app/` | Tizen package that waits for a URL and plays it |
-| Proxy | `proxy/` | Cloudflare Worker that turns long HLS links into a short ticket the TV can open |
+| iOS app | `Broadcaster/` | Account, TV list, browser, and watch history |
+| TV app | `tv-app/` | Tizen package that shows a pairing code and plays the URL the phone sends |
+| Proxy | `proxy/` | Cloudflare Worker that turns a long HLS link into a short ticket the TV can open |
 
-The default room code is `CAST01`. Change it in both `Broadcaster/AppConfig.swift` and `tv-app/js/config.js`. The Firebase and proxy URLs live in those same files, and the worker URL is also in `proxy/wrangler.toml`.
+The phone and the TV talk through Firebase Realtime Database. Auth is email and password, or Google. The database URL, API key, and proxy URL live in `Broadcaster/AppConfig.swift` and `tv-app/js/config.js`. The worker URL is also in `proxy/wrangler.toml`.
 
 ## How it fits together
 
-1. Open the TV app. It shows the room code and stays red until the phone connects.
-2. On the iPhone, enter the same code and tap Connect. The TV turns green.
-3. Browse to a page. Detected video files appear at the bottom. Scan searches the open page again.
-4. Tap Play. The phone downloads the HLS playlist in its own browser session and uploads it to the worker. The TV receives a short `/t/…/master.m3u8` URL and plays it.
+1. Sign in on the iPhone. A new account asks for a first name and acceptance of the terms.
+2. Open the TV app. It shows a 6-digit code.
+3. On the phone, add the TV with that code and give it a name. The TV remembers the account. Refresh on the TV forgets paired phones and issues a new code.
+4. Pick the TV and browse. Detected video files appear at the bottom. Play sends the file URL to that TV.
+5. History keeps the date and the URL that was sent. Tap an entry to play it again on the selected TV.
+
+The phone and each TV choose a language separately: Polish, English, German, French, Spanish, Italian, Portuguese, Russian, or Turkish. An unknown system language falls back to English.
 
 Popups that look like ad trackers are dropped. Player links such as `/e/` and `/embed/` still ask before opening.
 
 ## iOS
 
-Open `Broadcaster.xcodeproj`, set your signing team, and run it on a phone. The app needs the network permission already declared for arbitrary loads, because file host pages are plain HTTP as often as HTTPS.
+Open `Broadcaster.xcodeproj`, set your signing team, and run it on a phone or simulator. The app needs the network permission already declared for arbitrary loads, because file host pages are plain HTTP as often as HTTPS.
 
 ## TV
 

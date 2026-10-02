@@ -1,7 +1,3 @@
-/**
- * iOS przysyła gotowy plik albo krótki bilet HLS.
- * TV nie otwiera już stron filehostów.
- */
 var ResolverChain = (function () {
     'use strict';
 
@@ -9,13 +5,13 @@ var ResolverChain = (function () {
         options = options || {};
 
         if (!url || typeof url !== 'string') {
-            return Promise.reject(new Error('Nieprawidłowy URL'));
+            return Promise.reject(new Error(I18n.t('badUrl')));
         }
 
         url = url.trim();
 
         if (!Utils.isDirectStream(url)) {
-            return Promise.reject(new Error('To nie jest plik wideo. Uruchom go z aplikacji na iPhonie.'));
+            return Promise.reject(new Error(I18n.t('notVideo')));
         }
 
         if (ResolveUtils.isOurProxy(url)) {

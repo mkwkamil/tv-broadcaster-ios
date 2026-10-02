@@ -1,5 +1,14 @@
 {
   "database": {
     "rules": "database.rules.json"
+  },
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Broadcaster",
+        "supportEmail": "kamil.porebski@icloud.com"
+      }
+    }
   }
 }

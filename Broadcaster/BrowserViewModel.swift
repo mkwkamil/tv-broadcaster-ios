@@ -11,7 +11,6 @@ final class BrowserViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var streams: [DetectedStream] = []
     @Published var pendingPopup: URL?
-    @Published var roomCode: String
     @Published var toast: String?
     @Published var pageTitle = ""
     @Published var favorites: [FavoritePage] = []
@@ -21,18 +20,10 @@ final class BrowserViewModel: ObservableObject {
     weak var webView: WKWebView?
 
     init() {
-        let stored = UserDefaults.standard.string(forKey: AppConfig.roomDefaultsKey) ?? ""
-        roomCode = stored.isEmpty ? AppConfig.defaultRoom : stored
         if let data = UserDefaults.standard.data(forKey: AppConfig.favoritesDefaultsKey),
            let storedFavorites = try? JSONDecoder().decode([FavoritePage].self, from: data) {
             favorites = storedFavorites
         }
-    }
-
-    func persistRoom() {
-        let cleaned = String(roomCode.uppercased().filter { $0.isLetter || $0.isNumber }.prefix(6))
-        if cleaned != roomCode { roomCode = cleaned }
-        UserDefaults.standard.set(roomCode, forKey: AppConfig.roomDefaultsKey)
     }
 
     func loadAddress() {
@@ -97,17 +88,20 @@ final class BrowserViewModel: ObservableObject {
         streams.append(DetectedStream(url: url, page: page))
     }
 
-    func sendToTV(_ stream: DetectedStream) {
-        persistRoom()
-        toast = "Przygotowuję film..."
-        Task {
-            do {
-                let playURL = try await StreamTicket.playURL(for: stream)
-                try await TVChannel.send(url: playURL, referer: stream.page, room: roomCode)
-                toast = "Wysłano na TV"
-            } catch {
-                toast = error.localizedDescription
-            }
+    func sendToTV(_ stream: DetectedStream, tvId: String, online: Bool, token: String) async -> String? {
+        guard online else {
+            toast = LanguageStore.shared.t("tvOffline")
+            return nil
+        }
+        toast = LanguageStore.shared.t("preparing")
+        do {
+            let playURL = try await StreamTicket.playURL(for: stream)
+            try await TVChannel.send(url: playURL, referer: stream.page, tvId: tvId, token: token)
+            toast = LanguageStore.shared.t("sent")
+            return playURL.absoluteString
+        } catch {
+            toast = error.localizedDescription
+            return nil
         }
     }
 

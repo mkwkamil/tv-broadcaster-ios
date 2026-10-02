@@ -13,6 +13,46 @@
           ".validate": "newData.hasChildren(['state', 'timestamp']) && newData.child('state').isString() && newData.child('timestamp').isNumber()"
         }
       }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "codes": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": true,
+        ".validate": "newData.hasChildren(['tvId', 'accepting']) && newData.child('tvId').isString() && newData.child('tvId').val().length > 8 && newData.child('accepting').isBoolean()"
+      }
+    },
+    "tvs": {
+      "$tvId": {
+        "presence": {
+          ".read": "auth != null",
+          ".write": true,
+          ".validate": "newData.hasChildren(['online', 'lastSeen', 'code', 'accepting']) && newData.child('online').isBoolean() && newData.child('lastSeen').isNumber() && newData.child('code').isString() && newData.child('code').val().length === 6 && newData.child('accepting').isBoolean()"
+        },
+        "trusted": {
+          ".read": true,
+          "$uid": {
+            ".write": "(auth != null && auth.uid === $uid && newData.hasChildren(['pairedAt']) && newData.child('pairedAt').isNumber()) || !newData.exists()"
+          }
+        },
+        "queue": {
+          ".read": true,
+          "$itemId": {
+            ".write": "(auth != null && root.child('tvs').child($tvId).child('trusted').child(auth.uid).exists() && newData.child('status').val() === 'pending') || (data.exists() && newData.child('status').val() === 'consumed')",
+            ".validate": "newData.hasChildren(['url', 'timestamp']) && newData.child('url').isString() && newData.child('url').val().length > 0 && newData.child('url').val().length < 4096 && newData.child('timestamp').isNumber() && (!newData.child('referer').exists() || newData.child('referer').isString())"
+          }
+        },
+        "status": {
+          ".read": true,
+          ".write": true,
+          ".validate": "newData.hasChildren(['state', 'timestamp']) && newData.child('state').isString() && newData.child('timestamp').isNumber()"
+        }
+      }
     }
   }
 }

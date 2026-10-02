@@ -1,22 +1,3 @@
-/**
- * Cloudflare Worker – proxy dla trybu przeglądania i dla strumieni.
- *
- * Deploy:
- *   1. npm i -g wrangler
- *   2. wrangler login
- *   3. wrangler deploy
- *   4. Wklej URL workera do CONFIG.PROXY_URL w tv-app/js/config.js
- *      oraz do SENDER_CONFIG.PROXY_URL w sender/config.js
- *
- * Trasy:
- *   /page?url=...&room=...&db=...   strona z wstrzykniętym agentem
- *   /raw?url=...&referer=...        dowolny zasób z nagłówkami i CORS
- *   /?url=...&referer=...           to samo co /raw (używa tego aplikacja na TV)
- *
- * Ciasteczka krążą w obie strony i są przepisywane na domenę workera. Bez tego
- * serwisy za wyzwaniem Cloudflare odsyłają w kółko stronę „Just a moment…”.
- */
-
 import AGENT_SOURCE from './agent.js';
 
 const tickets = new Map();
@@ -58,11 +39,6 @@ export default {
     }
 };
 
-/**
- * Zwraca stronę przygotowaną do otwarcia w osobnej karcie telefonu:
- * z agentem na samej górze i z <base>, żeby względne adresy nadal
- * wskazywały prawdziwy serwis.
- */
 async function servePage(request, target, requestUrl) {
     const headers = withCookies(request, {
         'User-Agent': request.headers.get('user-agent') || BROWSER_UA,
@@ -77,8 +53,6 @@ async function servePage(request, target, requestUrl) {
         redirect: 'follow'
     };
 
-    // Captcha na viderze i podobnych idzie zwykłym POST-em. Bez przekazania
-    // ciała i ciasteczek serwer uznaje kod za nieważny i rysuje nowy.
     if (request.method !== 'GET' && request.method !== 'HEAD') {
         const contentType = request.headers.get('content-type');
         if (contentType) headers['Content-Type'] = contentType;
@@ -108,10 +82,6 @@ async function servePage(request, target, requestUrl) {
     return new Response(injected, { status: upstream.status, headers: responseHeaders });
 }
 
-/**
- * Przepuszcza zasób z podszyciem się pod przeglądarkę. Tędy idą strumienie
- * z aplikacji na TV oraz wszystkie XHR-y przekierowane przez agenta.
- */
 async function serveRaw(request, target, referer) {
     const headers = withCookies(request, {
         'User-Agent': request.headers.get('user-agent') || BROWSER_UA,
@@ -185,21 +155,12 @@ function isPlaylist(target, upstream) {
         type.includes('x-mpegurl');
 }
 
-/**
- * Playlisty HLS wskazują warianty i segmenty ścieżkami względnymi, które bez
- * przepisania rozwiązałyby się względem workera zamiast serwera z filmem.
- * Przy okazji jest to konieczne z drugiego powodu: CDN-y potrafią wiązać token
- * z adresem IP, który pobrał playlistę – a pobrał ją worker, nie telewizor.
- */
 async function servePlaylist(upstream, target, referer, proxyOrigin, options) {
     options = options || {};
 
     let base = upstream.url || target;
     let text = await upstream.text();
 
-    // Dokumentacja Samsunga nie wymienia playlist zbiorczych, a AVPlay
-    // potrafi się na nich wyłożyć. Dla telewizora podmieniamy więc listę
-    // wariantów na zawartość jednego z nich.
     if (options.flatten && /#EXT-X-STREAM-INF/i.test(text)) {
         const variantUrl = pickVariant(text, base);
         if (variantUrl) {
@@ -235,21 +196,12 @@ async function servePlaylist(upstream, target, referer, proxyOrigin, options) {
     return new Response(rewritten, { status: upstream.status, headers });
 }
 
-/**
- * Odtwarzacze rozpoznają rodzaj zasobu po rozszerzeniu w adresie, więc nazwa
- * pliku musi przetrwać opakowanie w proxy. Bez tego AVPlay bierze playlistę
- * wariantu za cokolwiek innego i przerywa odtwarzanie.
- */
 function toProxied(absolute, referer, proxyOrigin) {
     return proxyOrigin + '/s/' + fileNameOf(absolute) +
         '?url=' + encodeURIComponent(absolute) +
         (referer ? '&referer=' + encodeURIComponent(referer) : '');
 }
 
-/**
- * Wybiera z playlisty zbiorczej wariant o najwyższej przepływności – zwykle
- * najlepszej jakości, którą telewizor i tak udźwignie po kablu.
- */
 function pickVariant(text, base) {
     const lines = text.split('\n');
     let best = null;
@@ -286,18 +238,12 @@ function fileNameOf(url) {
     let name = '';
     try {
         name = new URL(url).pathname.split('/').filter(Boolean).pop() || '';
-    } catch (e) { /* ignore */ }
+    } catch (e) {  }
 
     name = name.replace(/[^A-Za-z0-9._-]/g, '');
     return name || 'stream';
 }
 
-/**
- * Bilet zamienia kilkusetznakowy adres CDN na krótki /t/id/master.m3u8.
- * AVPlay na Tizenie gubi połączenie, gdy query string po opakowaniu w proxy
- * przekracza mniej więcej dwa tysiące znaków – a tokeny z filehostów tak
- * właśnie wyglądają.
- */
 async function createTicket(request) {
     const body = await request.json();
     if (!body || !body.url) {
@@ -320,9 +266,7 @@ async function createTicket(request) {
     };
 
     try {
-        // Telefon przysyła już ściągniętą playlistę (ten sam IP i ciasteczka
-        // co przy oglądaniu). Worker z Cloudflare nie potrafi jej ponownie
-        // pobrać – token CDN jest przypięty do sieci telefonu.
+
         if (body.playlist && isM3u(body.playlist)) {
             applyUploadedPlaylist(ticket, body.playlist, body.base || body.url, origin, id);
         } else {
@@ -344,14 +288,9 @@ async function createTicket(request) {
     });
 }
 
-/**
- * Ściąga playlistę od razu, w sesji telefonu. Późniejszy odczyt z TV
- * dostaje już gotowy tekst – nie woła już umierającego biletu CDN.
- */
 function applyUploadedPlaylist(ticket, text, base, origin, id) {
     const pending = {};
-    // AVPlay otwiera master.m3u8, a potem każdy segment osobno. Długi token
-    // CDN w adresie segmentu urywa połączenie tak samo jak długi master.
+
     ticket.playlist = rewritePlaylistText(text, base, function (absolute) {
         const key = partKey(absolute);
         pending[key] = absolute;
@@ -399,7 +338,7 @@ function ticketHeaders(ticket, request) {
     if (ticket.cookie) headers['Cookie'] = ticket.cookie;
     if (ticket.referer) {
         headers['Referer'] = ticket.referer;
-        try { headers['Origin'] = new URL(ticket.referer).origin; } catch (e) { /* ignore */ }
+        try { headers['Origin'] = new URL(ticket.referer).origin; } catch (e) {  }
     }
     if (request) {
         const range = request.headers.get('range');
@@ -487,7 +426,7 @@ async function putTicket(id, data) {
                 'Cache-Control': 'max-age=7200'
             }
         }));
-    } catch (e) { /* Cache API bywa niedostępne w lokalnym wranglerze */ }
+    } catch (e) {  }
 }
 
 async function getTicket(id) {
@@ -509,10 +448,6 @@ function withCookies(request, headers) {
     return headers;
 }
 
-/**
- * Przepisuje Set-Cookie z serwisu na domenę workera. Atrybut Domain trzeba
- * usunąć, bo inaczej przeglądarka odrzuci ciasteczko jako obce.
- */
 function relayCookies(upstream, headers) {
     const cookies = upstream.headers.getSetCookie
         ? upstream.headers.getSetCookie()
@@ -533,14 +468,10 @@ function passthrough(upstream, target) {
     headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     headers.set('Access-Control-Expose-Headers', '*');
 
-    // Skoro i tak pośredniczymy, polityki osadzania serwisu są bez znaczenia,
-    // a potrafią zablokować wyświetlenie strony.
     headers.delete('x-frame-options');
     headers.delete('content-security-policy');
     headers.delete('content-security-policy-report-only');
 
-    // Kilka nagłówków Set-Cookie zlewa się w kopii w jeden, co je psuje.
-    // Odtwarzamy je pojedynczo i przepisujemy na domenę workera.
     headers.delete('set-cookie');
     relayCookies(upstream, headers);
 
@@ -573,7 +504,6 @@ function rewriteNavAttrs(html, pageUrl, origin) {
         }
     );
 
-    // target=_blank otwiera prawdziwą kartę Chrome poza web.app
     return rewritten.replace(/<a\b[^>]*>/gi, function (tag) {
         return tag
             .replace(/\s+target\s*=\s*(['"]?)[^'"\s>]+\1/gi, '')
@@ -595,8 +525,6 @@ function injectAgent(html, pageUrl, context) {
         '<base href="' + escapeAttribute(pageUrl) + '">' +
         '<script>' + agent + '</script>';
 
-    // Agent musi wystartować przed skryptami strony, więc wchodzi zaraz
-    // za <head>. Gdy znacznika brak, doklejamy go na początek dokumentu.
     const match = /<head[^>]*>/i.exec(html);
     if (match) {
         const at = match.index + match[0].length;

@@ -2,9 +2,12 @@ import SwiftUI
 import UIKit
 
 struct ContentView: View {
+    @StateObject private var session = AccountSession()
+    @StateObject private var directory = TVDirectory()
+    @StateObject private var history = WatchHistory()
     @StateObject private var model = BrowserViewModel()
+    @EnvironmentObject private var language: LanguageStore
     @State private var showBrowser = false
-    @State private var connectError: String?
 
     private let gold = Color(red: 0.98, green: 0.78, blue: 0.25)
 
@@ -13,24 +16,62 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             canvas.ignoresSafeArea()
-            if showBrowser {
+            if !session.isSignedIn {
+                LoginView(session: session)
+                    .transition(.opacity)
+            } else if !session.profileReady {
+                Color.clear
+            } else if !session.termsAccepted {
+                LoginView(session: session, start: .finish)
+                    .transition(.opacity)
+            } else if showBrowser {
                 browser
                     .transition(.opacity)
             } else {
-                lobby
-                    .transition(.opacity)
+                HomeTabs(session: session, directory: directory, history: history) { tv in
+                    directory.selectedID = tv.id
+                    model.showingFavorites = true
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        showBrowser = true
+                    }
+                }
+                .transition(.opacity)
             }
         }
         .preferredColorScheme(.dark)
         .tint(.white)
-        .alert("Przejść dalej?", isPresented: popupBinding) {
-            Button("Zezwól") { model.allowPopup() }
-            Button("Odrzuć", role: .cancel) { model.denyPopup() }
+        .task {
+            await session.restore()
+            if session.isSignedIn && session.termsAccepted {
+                directory.start(session: session)
+                history.start(session: session)
+            }
+        }
+        .onChange(of: session.isSignedIn) { _, signedIn in
+            showBrowser = false
+            if !signedIn {
+                directory.stop()
+                history.stop()
+            }
+        }
+        .onChange(of: session.termsAccepted) { _, accepted in
+            if accepted {
+                directory.start(session: session)
+                history.start(session: session)
+            }
+        }
+        .onChange(of: directory.selectedID) { _, id in
+            if showBrowser && id == nil {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    showBrowser = false
+                }
+            }
+        }
+        .alert(language.t("goFurther"), isPresented: popupBinding) {
+            Button(language.t("allow")) { model.allowPopup() }
+            Button(language.t("deny"), role: .cancel) { model.denyPopup() }
         } message: {
             Text(model.pendingPopup?.absoluteString ?? "")
-        }
-        .onChange(of: model.roomCode) { _, _ in
-            model.persistRoom()
         }
         .onChange(of: model.browseGeneration) { _, _ in
             model.showingFavorites = false
@@ -48,108 +89,6 @@ struct ContentView: View {
             get: { model.pendingPopup != nil },
             set: { if !$0 { model.denyPopup() } }
         )
-    }
-
-    private var lobby: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Image("BrandMark")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 36, height: 36)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                Text("Broadcaster")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.white, Color(white: 0.84), Color(white: 0.62)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                Spacer(minLength: 8)
-                Button(action: {}) {
-                    Image(systemName: "gearshape")
-                        .font(.title3.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.88))
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.leading, 20)
-            .padding(.trailing, 12)
-            .padding(.top, 8)
-
-            Spacer()
-
-            VStack(spacing: 28) {
-                Text("KOD POKOJU")
-                    .font(.caption.weight(.semibold))
-                    .tracking(3)
-                    .foregroundStyle(.white.opacity(0.45))
-
-                TextField("CAST01", text: $model.roomCode)
-                    .font(.system(size: 40, weight: .semibold))
-                    .multilineTextAlignment(.center)
-                    .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled()
-                    .padding(.vertical, 18)
-                    .padding(.horizontal, 12)
-                    .background {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .fill(Color.white.opacity(0.05))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
-                            )
-                            .shadow(color: Color.white.opacity(0.12), radius: 16)
-                            .shadow(color: Color.white.opacity(0.06), radius: 28)
-                    }
-                    .padding(.horizontal, 36)
-
-                Button(action: connect) {
-                    Text("Połącz")
-                        .font(.body.weight(.bold))
-                        .foregroundStyle(Color(red: 0.53, green: 0.94, blue: 0.67))
-                        .padding(.horizontal, 35)
-                        .padding(.vertical, 15)
-                        .background(Color(red: 0.20, green: 0.83, blue: 0.60).opacity(0.14), in: Capsule())
-                        .overlay(
-                            Capsule().stroke(Color(red: 0.29, green: 0.87, blue: 0.50).opacity(0.45), lineWidth: 1)
-                        )
-                }
-                .buttonStyle(.plain)
-                .disabled(model.roomCode.count < 4)
-                .opacity(model.roomCode.count < 4 ? 0.4 : 1)
-
-                if let connectError {
-                    Text(connectError)
-                        .font(.caption)
-                        .foregroundStyle(Color(red: 1, green: 0.62, blue: 0.62))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                }
-            }
-
-            Spacer()
-            Spacer()
-        }
-    }
-
-    private func connect() {
-        model.persistRoom()
-        connectError = nil
-        Task {
-            do {
-                try await TVChannel.markConnected(room: model.roomCode)
-                model.showingFavorites = true
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    showBrowser = true
-                }
-            } catch {
-                connectError = error.localizedDescription
-            }
-        }
     }
 
     private var browser: some View {
@@ -185,9 +124,9 @@ struct ContentView: View {
                 VStack(spacing: 14) {
                     Image(systemName: "star")
                         .font(.system(size: 34, weight: .light))
-                    Text("Jeszcze nic nie dodano\ndo ulubionych")
+                    Text(language.t("favoritesEmpty"))
                         .multilineTextAlignment(.center)
-                    Text("Otwórz stronę i stuknij gwiazdkę")
+                    Text(language.t("favoritesHint"))
                         .font(.footnote)
                         .foregroundStyle(.white.opacity(0.35))
                 }
@@ -242,7 +181,7 @@ struct ContentView: View {
         }
         .buttonStyle(.plain)
         .contextMenu {
-            Button("Usuń z ulubionych", role: .destructive) {
+            Button(language.t("removeFavorite"), role: .destructive) {
                 model.removeFavorite(page)
             }
         }
@@ -287,6 +226,12 @@ struct ContentView: View {
                     action: model.toggleFavorite
                 )
                 Spacer(minLength: 8)
+                if let name = directory.selected?.name {
+                    Text(name)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.45))
+                        .lineLimit(1)
+                }
                 iconButton("house", enabled: true) {
                     model.showingFavorites = true
                 }
@@ -309,7 +254,7 @@ struct ContentView: View {
                     .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
 
-                Button("Otwórz", action: model.loadAddress)
+                Button(language.t("open"), action: model.loadAddress)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
             }
@@ -338,18 +283,18 @@ struct ContentView: View {
     private var drawer: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(model.streams.isEmpty ? "Brak źródeł" : foundTitle)
+                Text(model.streams.isEmpty ? language.t("noSources") : foundTitle)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.45))
                     .textCase(.uppercase)
                     .tracking(1.2)
                 Spacer()
                 if !model.streams.isEmpty {
-                    Button("Wyczyść", action: model.clearStreams)
+                    Button(language.t("clear"), action: model.clearStreams)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.7))
                 }
-                Button("Skanuj", action: model.scanPage)
+                Button(language.t("scan"), action: model.scanPage)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white.opacity(model.currentPageURL == nil ? 0.28 : 0.7))
                     .disabled(model.currentPageURL == nil)
@@ -390,8 +335,18 @@ struct ContentView: View {
                     .truncationMode(.middle)
             }
             Spacer()
-            Button("Uruchom") {
-                model.sendToTV(stream)
+            Button(language.t("launch")) {
+                guard let tv = directory.selected else { return }
+                Task {
+                    do {
+                        let token = try await session.validToken()
+                        if let sent = await model.sendToTV(stream, tvId: tv.id, online: tv.online, token: token) {
+                            await history.record(sent)
+                        }
+                    } catch {
+                        model.toast = error.localizedDescription
+                    }
+                }
             }
             .font(.caption.weight(.semibold))
             .foregroundStyle(Color(red: 0.53, green: 0.94, blue: 0.67))
@@ -409,6 +364,6 @@ struct ContentView: View {
     }
 
     private var foundTitle: String {
-        model.streams.count == 1 ? "Znaleziono film" : "Znalezione pliki: \(model.streams.count)"
+        model.streams.count == 1 ? language.t("foundOne") : language.t("foundMany", model.streams.count)
     }
 }

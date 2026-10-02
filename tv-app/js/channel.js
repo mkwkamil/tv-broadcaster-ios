@@ -1,6 +1,3 @@
-/**
- * Komunikacja z Firebase Realtime Database przez REST + SSE.
- */
 var Channel = (function () {
     'use strict';
 
@@ -16,7 +13,7 @@ var Channel = (function () {
     }
 
     function roomPath(sub) {
-        return getBaseUrl() + '/rooms/' + roomCode + (sub ? '/' + sub : '');
+        return getBaseUrl() + '/tvs/' + roomCode + (sub ? '/' + sub : '');
     }
 
     function connect(code, onMessage) {
@@ -26,13 +23,11 @@ var Channel = (function () {
 
         disconnect();
         startListening();
-        watchPhone();
+        watchTrusted();
     }
 
-    function watchPhone() {
-        restPut(roomPath('phone'), { connected: false, timestamp: Date.now() })
-            .then(openPhoneStream)
-            .catch(openPhoneStream);
+    function watchTrusted() {
+        openPhoneStream();
     }
 
     function openPhoneStream() {
@@ -42,27 +37,30 @@ var Channel = (function () {
                 phoneSource.close();
                 phoneSource = null;
             }
-            phoneSource = new EventSource(roomPath('phone') + '.json');
-            phoneSource.addEventListener('put', function (event) {
-                applyPhoneEvent(event);
+            phoneSource = new EventSource(roomPath('trusted') + '.json');
+            phoneSource.addEventListener('put', function () {
+                refreshTrusted();
             });
-            phoneSource.addEventListener('patch', function (event) {
-                applyPhoneEvent(event);
+            phoneSource.addEventListener('patch', function () {
+                refreshTrusted();
             });
-        } catch (e) { /* brak kanału telefonu */ }
+            refreshTrusted();
+        } catch (e) {  }
     }
 
-    function applyPhoneEvent(event) {
-        try {
-            var payload = JSON.parse(event.data);
-            if (!payload) return;
-            var data = payload.path === '/' ? payload.data : null;
-            if (payload.path === '/connected') data = { connected: payload.data };
-            if (!data) return;
+    function refreshTrusted() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', roomPath('trusted') + '.json?t=' + Date.now(), true);
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== 4 || xhr.status !== 200) return;
+            var data = null;
+            try { data = JSON.parse(xhr.responseText); } catch (e) { data = null; }
+            var connected = !!(data && typeof data === 'object' && Object.keys(data).length > 0);
             if (typeof Pairing !== 'undefined' && Pairing.setConnected) {
-                Pairing.setConnected(!!data.connected);
+                Pairing.setConnected(connected);
             }
-        } catch (e) { /* ignore */ }
+        };
+        xhr.send();
     }
 
     function startListening() {
@@ -80,9 +78,7 @@ var Channel = (function () {
             eventSource.addEventListener('put', handleSSEEvent);
             eventSource.addEventListener('patch', handleSSEEvent);
             eventSource.onerror = function () {
-                // EventSource sam wznawia zerwane połączenie. Na polling
-                // schodzimy dopiero gdy zamknął je na dobre, inaczej jedno
-                // drgnięcie sieci trwale wyłączyłoby kanał zdarzeń.
+
                 if (eventSource && eventSource.readyState !== 2) return;
 
                 if (eventSource) {
@@ -101,9 +97,6 @@ var Channel = (function () {
             var payload = JSON.parse(event.data);
             if (!payload || typeof payload.path !== 'string') return;
 
-            // Pełną mapę kolejki Firebase wysyła tylko w pierwszym zdarzeniu po
-            // połączeniu. Każdy kolejny link przychodzi osobno, z kluczem
-            // elementu w polu path i jego zawartością w data.
             if (payload.path === '/') {
                 processQueueData(payload.data);
                 return;
@@ -113,14 +106,12 @@ var Channel = (function () {
                 return s.length > 0;
             });
 
-            // Głębsze ścieżki to aktualizacje pojedynczych pól, np. własny
-            // zapis status=consumed. Nie ma tam nowego linku.
             if (segments.length !== 1 || !payload.data) return;
 
             var single = {};
             single[segments[0]] = payload.data;
             processQueueData(single);
-        } catch (e) { /* ignore malformed events */ }
+        } catch (e) {  }
     }
 
     function startPolling() {
@@ -144,7 +135,7 @@ var Channel = (function () {
                 try {
                     var data = JSON.parse(xhr.responseText);
                     processQueueData(data);
-                } catch (e) { /* ignore */ }
+                } catch (e) {  }
             }
         };
         xhr.send();

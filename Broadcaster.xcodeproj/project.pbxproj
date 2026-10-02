@@ -18,6 +18,15 @@
 		A10000000000000000000028 /* TVChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001A /* TVChannel.swift */; };
 		A10000000000000000000029 /* StreamTicket.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001B /* StreamTicket.swift */; };
 		A1000000000000000000002A /* FavoritePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000001C /* FavoritePage.swift */; };
+		A10000000000000000000045 /* FirebaseREST.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000040 /* FirebaseREST.swift */; };
+		A10000000000000000000046 /* AccountSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000041 /* AccountSession.swift */; };
+		A10000000000000000000047 /* TVDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000042 /* TVDirectory.swift */; };
+		A10000000000000000000048 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000043 /* LoginView.swift */; };
+		A10000000000000000000049 /* TVListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000044 /* TVListView.swift */; };
+		A10000000000000000000055 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000050 /* L10n.swift */; };
+		A10000000000000000000056 /* WatchHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000051 /* WatchHistory.swift */; };
+		A10000000000000000000057 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000052 /* SettingsView.swift */; };
+		A10000000000000000000058 /* HomeTabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000053 /* HomeTabs.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,6 +43,15 @@
 		A1000000000000000000001A /* TVChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVChannel.swift; sourceTree = "<group>"; };
 		A1000000000000000000001B /* StreamTicket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamTicket.swift; sourceTree = "<group>"; };
 		A1000000000000000000001C /* FavoritePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritePage.swift; sourceTree = "<group>"; };
+		A10000000000000000000040 /* FirebaseREST.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseREST.swift; sourceTree = "<group>"; };
+		A10000000000000000000041 /* AccountSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSession.swift; sourceTree = "<group>"; };
+		A10000000000000000000042 /* TVDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVDirectory.swift; sourceTree = "<group>"; };
+		A10000000000000000000043 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		A10000000000000000000044 /* TVListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVListView.swift; sourceTree = "<group>"; };
+		A10000000000000000000050 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
+		A10000000000000000000051 /* WatchHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHistory.swift; sourceTree = "<group>"; };
+		A10000000000000000000052 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A10000000000000000000053 /* HomeTabs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeTabs.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -75,6 +93,15 @@
 				A1000000000000000000001A /* TVChannel.swift */,
 				A1000000000000000000001B /* StreamTicket.swift */,
 				A1000000000000000000001C /* FavoritePage.swift */,
+				A10000000000000000000040 /* FirebaseREST.swift */,
+				A10000000000000000000041 /* AccountSession.swift */,
+				A10000000000000000000042 /* TVDirectory.swift */,
+				A10000000000000000000043 /* LoginView.swift */,
+				A10000000000000000000044 /* TVListView.swift */,
+				A10000000000000000000050 /* L10n.swift */,
+				A10000000000000000000051 /* WatchHistory.swift */,
+				A10000000000000000000052 /* SettingsView.swift */,
+				A10000000000000000000053 /* HomeTabs.swift */,
 				A10000000000000000000014 /* Sniffer.js */,
 				A10000000000000000000016 /* Assets.xcassets */,
 				A10000000000000000000015 /* Info.plist */,
@@ -162,6 +189,15 @@
 				A10000000000000000000028 /* TVChannel.swift in Sources */,
 				A10000000000000000000029 /* StreamTicket.swift in Sources */,
 				A1000000000000000000002A /* FavoritePage.swift in Sources */,
+				A10000000000000000000045 /* FirebaseREST.swift in Sources */,
+				A10000000000000000000046 /* AccountSession.swift in Sources */,
+				A10000000000000000000047 /* TVDirectory.swift in Sources */,
+				A10000000000000000000048 /* LoginView.swift in Sources */,
+				A10000000000000000000049 /* TVListView.swift in Sources */,
+				A10000000000000000000055 /* L10n.swift in Sources */,
+				A10000000000000000000056 /* WatchHistory.swift in Sources */,
+				A10000000000000000000057 /* SettingsView.swift in Sources */,
+				A10000000000000000000058 /* HomeTabs.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -297,6 +333,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ZF52YHLJFB;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Broadcaster/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Broadcaster;

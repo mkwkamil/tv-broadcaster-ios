@@ -28,7 +28,7 @@ var Utils = (function () {
     function showToast(options) {
         options = options || {};
         var duration = options.duration || 5000;
-        var title = options.title || 'Wystąpił błąd';
+        var title = options.title || (typeof I18n !== 'undefined' ? I18n.t('errorTitle') : 'Wystąpił błąd');
         var message = options.message || '';
         var toast = document.getElementById('toast');
         var icon = document.getElementById('toast-icon');
@@ -62,7 +62,7 @@ var Utils = (function () {
             audio.currentTime = 0;
             var pending = audio.play();
             if (pending && pending.catch) pending.catch(function () {});
-        } catch (e) { /* odtwarzanie niedostępne */ }
+        } catch (e) {  }
     }
 
     function hideToast() {
@@ -136,7 +136,7 @@ var Utils = (function () {
     function saveRoomCode(code) {
         try {
             localStorage.setItem('broadcaster_room_code', code);
-        } catch (e) { /* ignore */ }
+        } catch (e) {  }
     }
 
     return {

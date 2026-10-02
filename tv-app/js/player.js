@@ -1,6 +1,3 @@
-/**
- * Odtwarzacz AVPlay z fallbackiem HTML5 video.
- */
 var Player = (function () {
     'use strict';
 
@@ -26,7 +23,7 @@ var Player = (function () {
             if (typeof webapis !== 'undefined' && webapis.avplay) {
                 avplay = webapis.avplay;
             }
-        } catch (e) { /* AVPlay niedostępny */ }
+        } catch (e) {  }
     }
 
     function play(result, callbacks) {
@@ -52,20 +49,15 @@ var Player = (function () {
         tryNextSource();
     }
 
-    /**
-     * Kolejne adresy tego samego strumienia: najpierw wprost, potem przez
-     * proxy. Każdy z nich bywa jedynym działającym, zależnie od tego czy
-     * serwer pilnuje adresu IP, czy nagłówka Referer.
-     */
     function tryNextSource() {
         if (attemptIndex >= attempts.length) {
             handleError(attempts.length > 1
-                ? 'Nie udało się połączyć – próbowano bezpośrednio i przez proxy'
-                : 'Nie udało się połączyć ze źródłem wideo');
+                ? I18n.t('connectFailedBoth')
+                : I18n.t('connectFailed'));
             return;
         }
 
-        updateStatus(attemptIndex === 0 ? 'Łączenie...' : 'Próbuję przez proxy...');
+        updateStatus(attemptIndex === 0 ? I18n.t('connecting') : I18n.t('viaProxy'));
 
         var url = attempts[attemptIndex++];
 
@@ -79,10 +71,8 @@ var Player = (function () {
     function sourceFailed(mine) {
         if (mine !== generation) return;
 
-        // Błąd w trakcie odtwarzania to nie powód, żeby zaczynać od nowa
-        // innym adresem – to źródło już się sprawdziło.
         if (state === 'playing') {
-            handleError('Odtwarzanie przerwane przez błąd strumienia');
+            handleError(I18n.t('streamCut'));
             return;
         }
 
@@ -96,9 +86,8 @@ var Player = (function () {
         resetAvplay();
         usingAvplay = false;
 
-        // Tizen w HTML5 nie odtworzy HLS – kolejny błąd tylko myli komunikat.
         if (currentResult && currentResult.type === 'hls') {
-            handleError('AVPlay nie odtworzył tego strumienia HLS');
+            handleError(I18n.t('hlsFailed'));
             return;
         }
 
@@ -106,19 +95,12 @@ var Player = (function () {
     }
 
     function shouldUseAvplay(result) {
-        // Zwykły plik MP4 AVPlay często odrzuca przy prepare. Tizen odtwarza
-        // go poprawnie z elementu video – AVPlay zostaje zapasem.
+
         return result.type === 'hls' || result.type === 'mkv';
     }
 
-    /**
-     * Prostokąt i tryb skalowania AVPlay przyjmuje dopiero w stanie READY,
-     * czyli po prepare. Wcześniejsze wywołanie jest ignorowane – zostaje
-     * dźwięk, a obraz leci poza ekran albo pod nieprzezroczyste tło.
-     */
     function applyAvplayDisplay() {
-        // Rozmiar aplikacji, nie okna. innerWidth na tym telewizorze bywa
-        // mniejsze i zostawia mały prostokąt obrazu na środku panelu.
+
         var width = 1920;
         var height = 1080;
 
@@ -138,8 +120,8 @@ var Player = (function () {
 
         try {
             avplay.setDisplayMethod('PLAYER_DISPLAY_MODE_LETTER_BOX');
-        } catch (e) { /* ignore */ }
-        try { avplay.setDisplayRect(0, 0, width, height); } catch (e) { /* ignore */ }
+        } catch (e) {  }
+        try { avplay.setDisplayRect(0, 0, width, height); } catch (e) {  }
     }
 
     function parkHtml5() {
@@ -169,13 +151,9 @@ var Player = (function () {
         resetAvplay();
 
         try {
-            // AVPlay przyjmuje właściwości strumienia dopiero w stanie IDLE,
-            // w który wchodzi po open(). Zmiana kolejności rzuca wyjątkiem.
+
             avplay.open(streamUrl);
 
-            // Podmiana User-Agent na zwykłym pliku MP4 bywa powodem
-            // CONNECTION_FAILED. Używamy jej tylko przy ciasteczku albo
-            // gdy strumień i tak idzie przez nasze proxy.
             if (currentResult.userAgent && (currentResult.cookie || isProxied(streamUrl))) {
                 avplay.setStreamingProperty('USER_AGENT', currentResult.userAgent);
             }
@@ -186,10 +164,10 @@ var Player = (function () {
             avplay.setListener({
                 onbufferingstart: function () {
                     applyAvplayDisplay();
-                    updateStatus('Buforowanie...');
+                    updateStatus(I18n.t('buffering'));
                 },
                 onbufferingprogress: function (percent) {
-                    updateStatus('Buforowanie ' + percent + '%');
+                    updateStatus(percent + '%');
                 },
                 onbufferingcomplete: function () {
                     applyAvplayDisplay();
@@ -234,7 +212,7 @@ var Player = (function () {
                 avplay.stop();
                 avplay.close();
             }
-        } catch (e) { /* instancja jeszcze nie istnieje */ }
+        } catch (e) {  }
     }
 
     function isProxied(url) {
@@ -247,10 +225,9 @@ var Player = (function () {
         html5.onloadedmetadata = null;
         html5.ontimeupdate = null;
         html5.onended = null;
-        try { html5.pause(); } catch (e) { /* ignore */ }
+        try { html5.pause(); } catch (e) {  }
         html5.removeAttribute('src');
-        // load() na pustym src strzela onerror. Nowy plik i tak woła load()
-        // po ustawieniu src, więc tu go pomijamy.
+
     }
 
     function playHtml5(streamUrl) {
@@ -261,8 +238,6 @@ var Player = (function () {
         restoreHtml5();
         html5.classList.remove('hidden');
 
-        // Najpierw zdejmujemy stare handlery. Inaczej puste load() z stop()
-        // odpala onerror już po podpięciu nowego pliku i udaje, że to on padł.
         detachHtml5();
         html5.classList.remove('hidden');
 
@@ -270,7 +245,7 @@ var Player = (function () {
             if (mine !== generation) return;
             var playPromise = html5.play();
             if (playPromise && playPromise.catch) {
-                playPromise.catch(function () { /* autoplay bywa odrzucany */ });
+                playPromise.catch(function () {  });
             }
             state = 'playing';
             updateStatus('');
@@ -294,7 +269,7 @@ var Player = (function () {
                 playAvplay(streamUrl);
                 return;
             }
-            handleError('Nie udało się odtworzyć strumienia');
+            handleError(I18n.t('playFailed'));
         };
 
         html5.src = streamUrl;
@@ -308,19 +283,19 @@ var Player = (function () {
                 var avState = avplay.getState();
                 if (avState === 'PLAYING') {
                     avplay.pause();
-                    updateStatus('Pauza');
+                    updateStatus(I18n.t('pause'));
                 } else if (avState === 'PAUSED') {
                     avplay.play();
                     updateStatus('');
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e) {  }
         } else if (html5) {
             if (html5.paused) {
                 html5.play();
                 updateStatus('');
             } else {
                 html5.pause();
-                updateStatus('Pauza');
+                updateStatus(I18n.t('pause'));
             }
         }
         scheduleHideOverlay();
@@ -343,7 +318,7 @@ var Player = (function () {
                 var target = Math.max(0, Math.min(current + deltaMs, duration));
                 avplay.seekTo(target);
                 updateTime(target, duration);
-            } catch (e) { /* ignore */ }
+            } catch (e) {  }
         } else if (html5) {
             html5.currentTime = Math.max(0, html5.currentTime + deltaMs / 1000);
         }

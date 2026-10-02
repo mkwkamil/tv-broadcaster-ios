@@ -1,6 +1,3 @@
-/**
- * Główna logika aplikacji Broadcaster.
- */
 var App = (function () {
     'use strict';
 
@@ -69,7 +66,7 @@ var App = (function () {
 
         ResolverChain.resolve(item.url, 0, { referer: item.referer }).then(function (result) {
             if (!result || !result.streamUrl) {
-                throw new Error('Nie znaleziono strumienia wideo na tej stronie');
+                throw new Error(I18n.t('notFound'));
             }
 
             Channel.setStatus('playing', {
@@ -80,6 +77,7 @@ var App = (function () {
 
             Utils.hideToast();
             Utils.showScreen('screen-player');
+            if (typeof Pairing !== 'undefined' && Pairing.setAccepting) Pairing.setAccepting(false);
             setupPlayerKeys();
 
             Player.play(result, {
@@ -106,8 +104,8 @@ var App = (function () {
             goToPairing();
         }
         Utils.showToast({
-            title: 'Wystąpił błąd',
-            message: message || 'Nie udało się odtworzyć strumienia'
+            title: I18n.t('errorTitle'),
+            message: message || I18n.t('playFailed')
         });
         if (hasMore) {
             processNext();
@@ -119,6 +117,7 @@ var App = (function () {
         Keys.clear();
         setupPairingKeys();
         Utils.showScreen('screen-pairing');
+        if (typeof Pairing !== 'undefined' && Pairing.setAccepting) Pairing.setAccepting(true);
         Keys.setupFocusNavigation();
         processing = false;
         Channel.setStatus('idle');
@@ -146,7 +145,12 @@ var App = (function () {
         Keys.on(Keys.KEY.STOP, function () { goToPairing(); return true; });
     }
 
-    return { init: init };
+    function restorePairingKeys() {
+        setupPairingKeys();
+        Keys.setupFocusNavigation();
+    }
+
+    return { init: init, restorePairingKeys: restorePairingKeys };
 })();
 
 document.addEventListener('DOMContentLoaded', function () {

@@ -36,7 +36,6 @@
     box-sizing: border-box;
 }
 
-/* Tizen rysuje na obiekcie AVPlay pionowy, zaokrąglony pasek przewijania. */
 ::-webkit-scrollbar,
 ::-webkit-scrollbar-thumb,
 ::-webkit-scrollbar-track {
@@ -205,6 +204,64 @@ html, body {
     100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
+.refresh-code {
+    display: inline-block;
+    margin-top: 28px;
+    padding: 14px 36px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.82);
+    font-family: 'Inter', 'Samsung One', sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.refresh-code.focused,
+.refresh-code:focus {
+    border-color: rgba(255, 255, 255, 0.72);
+    color: #ffffff;
+}
+
+#language-button {
+    margin-left: 16px;
+}
+
+.language-box {
+    width: 720px;
+    text-align: center;
+}
+
+.language-option {
+    display: block;
+    width: 100%;
+    margin-top: 16px;
+    padding: 22px 28px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.88);
+    font-family: 'Inter', 'Samsung One', sans-serif;
+    font-size: 28px;
+    font-weight: 600;
+    text-align: left;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.language-option.is-current {
+    border-color: rgba(74, 222, 128, 0.55);
+    color: #86efac;
+}
+
+.language-option.focused,
+.language-option:focus {
+    border-color: rgba(255, 255, 255, 0.8);
+    color: #ffffff;
+}
+
 .pairing-footer {
     padding: 0 80px 64px;
     text-align: center;
@@ -241,7 +298,6 @@ html, body {
     text-overflow: ellipsis;
 }
 
-/* Buttons */
 .btn {
     display: inline-block;
     padding: 16px 40px;
@@ -269,7 +325,6 @@ html, body {
     box-shadow: 0 0 0 4px #6c8cff;
 }
 
-/* Player */
 #screen-player.active {
     display: block;
 }
@@ -281,8 +336,6 @@ html, body {
     position: relative;
 }
 
-/* Obraz rysuje setDisplayRect. Sam obiekt zostawiamy bez powierzchni,
-   inaczej Tizen maluje na jego środku pionowy, zaokrąglony pasek. */
 #av-player {
     position: absolute;
     top: 0;
@@ -296,14 +349,10 @@ html, body {
     overflow: hidden;
 }
 
-/* display:none odłącza warstwę sprzętową AVPlay. Gdy obiekt znika z układu,
-   obraz zostaje za aplikacją i widać tylko tło. */
 #av-player.hidden {
     visibility: hidden;
 }
 
-/* AVPlay rysuje klatki za warstwą HTML. Jakiekolwiek nieprzezroczyste tło
-   na drodze od html do obiektu zasłania obraz – zostaje sam dźwięk. */
 html.av-playing,
 html.av-playing body,
 html.av-playing #app,
@@ -376,7 +425,6 @@ html.av-playing .player-container {
     margin-top: 10px;
 }
 
-/* Toast */
 .toast {
     position: fixed;
     top: 40px;

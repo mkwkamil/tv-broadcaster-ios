@@ -9,7 +9,7 @@
 </head>
 <body>
     <div id="app">
-        <!-- Ekran parowania -->
+
         <section id="screen-pairing" class="screen active">
             <header class="header">
                 <div class="brand">
@@ -19,24 +19,34 @@
             </header>
             <div class="pairing-content">
                 <div class="room-box">
-                    <p class="label">Kod pokoju</p>
-                    <div id="room-code" class="room-code">CAST01</div>
+                    <p class="label" data-i18n="codeTitle">Kod telewizora</p>
+                    <div id="room-code" class="room-code">------</div>
                     <div id="status-pill" class="status-pill is-off">
                         <span class="status-dot" aria-hidden="true"></span>
                         <span id="qr-hint">Niepołączono</span>
                     </div>
+                    <button id="refresh-code" class="refresh-code focusable" type="button" data-i18n="refresh">Odśwież</button>
+                    <button id="language-button" class="refresh-code focusable" type="button">Polski</button>
                 </div>
             </div>
             <div id="queue-preview" class="queue-preview hidden">
-                <p class="label">W kolejce</p>
+                <p class="label" data-i18n="queue">W kolejce</p>
                 <ul id="queue-list" class="queue-list"></ul>
             </div>
-            <footer class="pairing-footer">
-                Otwórz film w aplikacji na iPhonie i wybierz Uruchom.
+            <footer class="pairing-footer" data-i18n="footer">
+                Wpisz kod w aplikacji na iPhonie. Odśwież kasuje zapamiętane telefony.
             </footer>
         </section>
 
-        <!-- Ekran odtwarzacza -->
+        <section id="screen-language" class="screen">
+            <div class="pairing-content">
+                <div class="language-box">
+                    <p class="label" data-i18n="language">Język</p>
+                    <div id="language-list"></div>
+                </div>
+            </div>
+        </section>
+
         <section id="screen-player" class="screen">
             <div id="player-container" class="player-container">
                 <object id="av-player" type="application/avplayer" width="0" height="0" class="hidden"></object>
@@ -50,8 +60,8 @@
                     <span id="player-time">00:00 / 00:00</span>
                     <span id="player-status" class="player-status hidden"></span>
                 </div>
-                <div id="player-hint" class="player-hint">
-                    OK: play/pauza &nbsp;|&nbsp; ◀ ▶: przewijanie &nbsp;|&nbsp; Return: wyjście
+                <div id="player-hint" class="player-hint" data-i18n="hint">
+                    OK: play/pauza | ◀ ▶: przewijanie | Return: wyjście
                 </div>
             </div>
         </section>
@@ -67,6 +77,7 @@
     </div>
 
     <script src="js/config.js"></script>
+    <script src="js/i18n.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/resolve/utils.js"></script>
     <script src="js/resolve/index.js"></script>

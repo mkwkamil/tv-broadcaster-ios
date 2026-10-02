@@ -1,6 +1,3 @@
-/**
- * Obsługa pilota Samsung Smart TV.
- */
 var Keys = (function () {
     'use strict';
 
@@ -40,7 +37,7 @@ var Keys = (function () {
                     tizen.tvinputdevice.registerKey(keys[i]);
                 }
             }
-        } catch (e) { /* ignore on non-Tizen */ }
+        } catch (e) {  }
     }
 
     function handleKeyDown(e) {

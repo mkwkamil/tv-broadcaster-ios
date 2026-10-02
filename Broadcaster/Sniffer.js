@@ -9,7 +9,7 @@
     function post(payload) {
         try {
             window.webkit.messageHandlers.broadcaster.postMessage(payload);
-        } catch (e) { /* native handler missing in Safari preview */ }
+        } catch (e) {  }
     }
 
     function pathnameOf(url) {
@@ -54,7 +54,7 @@
             found(this.responseURL || this.__bcUrl);
             try {
                 if (typeof this.responseText === 'string') harvest(this.responseText, this.responseURL || this.__bcUrl);
-            } catch (e) { /* ignore */ }
+            } catch (e) {  }
         });
         return xhrSend.apply(this, arguments);
     };
@@ -71,7 +71,7 @@
                     if (/json|text|javascript|xml|mpegurl/i.test(type) && resp.clone) {
                         resp.clone().text().then(function (body) { harvest(body, resp.url || url); }).catch(function () {});
                     }
-                } catch (e) { /* ignore */ }
+                } catch (e) {  }
                 return resp;
             });
         };
@@ -86,7 +86,7 @@
         try {
             var entries = performance.getEntriesByType('resource');
             for (var j = 0; j < entries.length; j++) found(entries[j].name);
-        } catch (e) { /* ignore */ }
+        } catch (e) {  }
     }
 
     function scanPage() {
@@ -94,13 +94,13 @@
         scan();
         try {
             harvest(document.documentElement ? document.documentElement.innerHTML : '', location.href);
-        } catch (e) { /* ignore */ }
+        } catch (e) {  }
         var frames = document.querySelectorAll('iframe');
         for (var i = 0; i < frames.length; i++) {
             try {
                 var doc = frames[i].contentDocument;
                 if (doc && doc.documentElement) harvest(doc.documentElement.innerHTML, frames[i].src || location.href);
-            } catch (e) { /* obca ramka */ }
+            } catch (e) {  }
         }
     }
 

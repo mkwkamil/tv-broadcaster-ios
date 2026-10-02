@@ -1,10 +1,3 @@
-/**
- * Cichy podsłuch. Nie rusza klików, formularzy ani wyglądu strony.
- * Jedynie przepuszcza sieć przez /raw (inaczej JS strony pada na CORS)
- * i zgłasza rodzicowi adresy, które wyglądają na film.
- *
- * Worker podmienia __PROXY_ORIGIN__, __PAGE_URL__, __PAGE_PATH__, __RAW_PATH__.
- */
 (function () {
     'use strict';
 
@@ -23,7 +16,7 @@
         Object.defineProperty(window, 'top', { configurable: true, get: function () { return window; } });
         Object.defineProperty(window, 'parent', { configurable: true, get: function () { return window; } });
         Object.defineProperty(window, 'opener', { configurable: true, get: function () { return null; } });
-    } catch (e) { /* ignore */ }
+    } catch (e) {  }
     var STREAM_RE = /\.(m3u8|mpd|mp4|mkv|webm)(\?|#|$)/i;
     var STREAM_HINT = /(\.m3u8|\.mpd|\/master\.|\/playlist\.|\/hls\/|\/dash\/|urlset|mpegurl)/i;
     var seen = {};
@@ -45,7 +38,7 @@
                     return true;
                 }
             }
-        } catch (e) { /* ignore */ }
+        } catch (e) {  }
         return false;
     }
 
@@ -75,7 +68,7 @@
 
     function tell(payload) {
         payload.source = 'broadcaster-agent';
-        try { HOST.postMessage(payload, '*'); } catch (e) { /* ignore */ }
+        try { HOST.postMessage(payload, '*'); } catch (e) {  }
     }
 
     function found(url) {
@@ -107,7 +100,7 @@
 
     var origSend = XMLHttpRequest.prototype.send;
     XMLHttpRequest.prototype.send = function () {
-        try { this.withCredentials = true; } catch (e) { /* ignore */ }
+        try { this.withCredentials = true; } catch (e) {  }
         this.addEventListener('load', function () {
             var src = this.__bc || this.responseURL;
             found(src);
@@ -129,7 +122,7 @@
                     init.credentials = 'include';
                     input = typeof input === 'string' ? viaRaw(href) : new Request(viaRaw(href), input);
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e) {  }
             return origFetch.call(this, input, init).then(function (resp) {
                 if (href) {
                     found(href);
@@ -138,7 +131,7 @@
                         if (/json|text|javascript|xml|mpegurl/i.test(type) && resp.clone) {
                             resp.clone().text().then(function (body) { harvest(body, href); }).catch(function () {});
                         }
-                    } catch (e) { /* ignore */ }
+                    } catch (e) {  }
                 }
                 return resp;
             });
@@ -160,7 +153,7 @@
                 }
             };
         };
-    } catch (e) { /* ignore */ }
+    } catch (e) {  }
 
     document.addEventListener('click', function (e) {
         if (e.button !== 0) return;
@@ -187,7 +180,7 @@
         try {
             var entries = performance.getEntriesByType('resource');
             for (var j = 0; j < entries.length; j++) found(entries[j].name);
-        } catch (e) { /* ignore */ }
+        } catch (e) {  }
     }
 
     tell({ kind: 'navigated', url: PAGE_URL });

@@ -1,14 +1,6 @@
-/**
- * Opakowanie gotowego pliku w adres, który AVPlay potrafi otworzyć.
- */
 var ResolveUtils = (function () {
     'use strict';
 
-    /**
-     * AVPlay rozpoznaje rodzaj strumienia po rozszerzeniu w adresie, jeszcze
-     * zanim cokolwiek pobierze. Nazwa pliku musi więc przetrwać opakowanie
-     * w proxy, inaczej playlista HLS trafia do złego dekodera.
-     */
     function isOurProxy(url) {
         var base = (CONFIG.PROXY_URL || '').replace(/\/$/, '');
         return !!(base && url.indexOf(base) === 0);
@@ -39,8 +31,7 @@ var ResolveUtils = (function () {
     }
 
     function proxied(streamUrl, referer) {
-        // flatten=1 każe proxy podmienić playlistę zbiorczą na jeden wariant –
-        // AVPlay nie radzi sobie z listami wariantów.
+
         return CONFIG.PROXY_URL.replace(/\/$/, '') + '/s/' + streamFileName(streamUrl) +
             '?url=' + encodeURIComponent(streamUrl) +
             '&referer=' + encodeURIComponent(referer || '') +
@@ -51,7 +42,7 @@ var ResolveUtils = (function () {
         var name = '';
         try {
             name = new URL(url).pathname.split('/').filter(Boolean).pop() || '';
-        } catch (e) { /* ignore */ }
+        } catch (e) {  }
 
         name = name.replace(/[^A-Za-z0-9._-]/g, '');
         return name || 'stream';
@@ -61,10 +52,6 @@ var ResolveUtils = (function () {
         options = options || {};
         var type = Utils.getStreamType(streamUrl);
 
-        // Oba adresy jadą do odtwarzacza, bo z góry nie wiadomo który zadziała.
-        // Token bywa przypisany do adresu IP, z którego pobrano playlistę –
-        // wtedy proxy przeszkadza. Kiedy indziej serwer wymaga nagłówka
-        // Referer, którego AVPlay nie wyśle – wtedy proxy jest niezbędne.
         var proxyUrl = '';
         if (CONFIG.PROXY_URL && options.needsReferer && !isOurProxy(streamUrl)) {
             proxyUrl = proxied(streamUrl, options.referer);
