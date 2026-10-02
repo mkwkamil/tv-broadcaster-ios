@@ -1,0 +1,446 @@
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400;
+    src: url('../fonts/Inter-Regular-Ext.woff') format('woff');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 600;
+    src: url('../fonts/Inter-SemiBold-Ext.woff') format('woff');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400;
+    src: url('../fonts/Inter-Regular.woff') format('woff');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 600;
+    src: url('../fonts/Inter-SemiBold.woff') format('woff');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Tizen rysuje na obiekcie AVPlay pionowy, zaokrąglony pasek przewijania. */
+::-webkit-scrollbar,
+::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-track {
+    width: 0;
+    height: 0;
+    display: none;
+    background: transparent;
+}
+
+html, body {
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    background: #050507;
+    color: #f4f5f8;
+    font-family: 'Inter', 'Samsung One', sans-serif;
+    font-size: 28px;
+}
+
+#app {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.screen {
+    display: none;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.screen.active {
+    display: flex;
+    flex-direction: column;
+}
+
+#screen-pairing {
+    background: #050507;
+}
+
+.header {
+    padding: 56px 80px 0;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+}
+
+.logo {
+    width: 72px;
+    height: 72px;
+    margin-right: 22px;
+    border-radius: 18px;
+    object-fit: cover;
+    display: block;
+    flex-shrink: 0;
+}
+
+.brand h1 {
+    font-size: 44px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    background: linear-gradient(180deg, #ffffff 0%, #d5d8e2 48%, #8e95a8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.pairing-content {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 80px;
+}
+
+.room-box {
+    text-align: center;
+    min-width: 760px;
+    padding: 72px 108px 64px;
+    border-radius: 40px;
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    box-shadow: 0 0 24px rgba(255, 255, 255, 0.035);
+}
+
+.label {
+    font-size: 18px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.46);
+    text-transform: uppercase;
+    letter-spacing: 0.42em;
+    margin-bottom: 28px;
+}
+
+.room-code {
+    font-family: 'Inter', 'Samsung One', sans-serif;
+    font-size: 128px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.14em;
+    line-height: 1;
+    color: #ffffff;
+    margin-bottom: 40px;
+    text-indent: 0.14em;
+}
+
+.status-pill {
+    display: inline-block;
+    margin: 0 auto;
+    padding: 14px 28px 14px 22px;
+    border-radius: 999px;
+    background: rgba(52, 211, 153, 0.12);
+    border: 1px solid rgba(74, 222, 128, 0.35);
+    color: #86efac;
+    font-family: 'Inter', 'Samsung One', sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+.status-pill.is-off {
+    background: rgba(239, 68, 68, 0.14);
+    border-color: rgba(248, 113, 113, 0.45);
+    color: #fca5a5;
+}
+
+.status-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 16px;
+    border-radius: 50%;
+    background: #22c55e;
+    vertical-align: middle;
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    animation: status-pulse 1.8s ease-out infinite;
+}
+
+.status-pill.is-off .status-dot {
+    background: #ef4444;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    animation-name: status-pulse-off;
+}
+
+@keyframes status-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); }
+    70% { box-shadow: 0 0 0 12px rgba(34, 197, 94, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+@keyframes status-pulse-off {
+    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+    70% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.pairing-footer {
+    padding: 0 80px 64px;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.38);
+}
+
+.queue-preview {
+    padding: 0 80px 8px;
+    text-align: center;
+}
+
+.queue-preview.hidden {
+    display: none;
+}
+
+.queue-list {
+    list-style: none;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.queue-list li {
+    padding: 12px 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    font-size: 20px;
+    color: rgba(255, 255, 255, 0.55);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    padding: 16px 40px;
+    font-size: 26px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    outline: none;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.btn-primary {
+    background: #6c8cff;
+    color: #fff;
+}
+
+.btn-secondary {
+    background: #2a2a3a;
+    color: #ccc;
+}
+
+.btn.focused,
+.btn:focus {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 4px #6c8cff;
+}
+
+/* Player */
+#screen-player.active {
+    display: block;
+}
+
+.player-container {
+    width: 100%;
+    height: 100%;
+    background: #000;
+    position: relative;
+}
+
+/* Obraz rysuje setDisplayRect. Sam obiekt zostawiamy bez powierzchni,
+   inaczej Tizen maluje na jego środku pionowy, zaokrąglony pasek. */
+#av-player {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    margin: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    overflow: hidden;
+}
+
+/* display:none odłącza warstwę sprzętową AVPlay. Gdy obiekt znika z układu,
+   obraz zostaje za aplikacją i widać tylko tło. */
+#av-player.hidden {
+    visibility: hidden;
+}
+
+/* AVPlay rysuje klatki za warstwą HTML. Jakiekolwiek nieprzezroczyste tło
+   na drodze od html do obiektu zasłania obraz – zostaje sam dźwięk. */
+html.av-playing,
+html.av-playing body,
+html.av-playing #app,
+html.av-playing #screen-player,
+html.av-playing .player-container {
+    background: transparent;
+}
+
+.html5-player {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.html5-player.hidden {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+.player-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 72px 80px 48px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.4s;
+}
+
+.player-overlay.hidden {
+    opacity: 0;
+}
+
+.player-progress {
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.16);
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.player-progress-fill {
+    height: 100%;
+    width: 0;
+    border-radius: 2px;
+    background: rgba(244, 245, 248, 0.9);
+}
+
+.player-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 20px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.player-status {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.player-hint {
+    font-size: 16px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.38);
+    margin-top: 10px;
+}
+
+/* Toast */
+.toast {
+    position: fixed;
+    top: 40px;
+    right: 48px;
+    display: flex;
+    align-items: flex-start;
+    max-width: 520px;
+    padding: 15px 25px;
+    background: #18181b;
+    border: 1px solid transparent;
+    border-radius: 15px;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    -webkit-transform: translateY(-10px);
+    transform: translateY(-10px);
+    -webkit-transition: opacity 0.3s ease, visibility 0.3s ease, -webkit-transform 0.3s ease;
+    transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
+}
+
+.toast.is-visible {
+    opacity: 1;
+    visibility: visible;
+    -webkit-transform: translateY(0);
+    transform: translateY(0);
+}
+
+.toast.is-error {
+    background: rgba(192, 35, 35, 0.1);
+    border-color: rgba(192, 35, 35, 0.7);
+}
+
+.toast-icon {
+    width: 23px;
+    height: 23px;
+    margin-top: auto;
+    margin-bottom: auto;
+    margin-right: 20px;
+    color: #9a4e4e;
+    -webkit-flex-shrink: 0;
+    flex-shrink: 0;
+}
+
+.toast-icon svg {
+    display: block;
+    width: 23px;
+    height: 23px;
+}
+
+.toast-title {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    margin-bottom: 3px;
+    padding-bottom: 5px;
+    color: #fcfdff;
+}
+
+.toast-message {
+    font-size: 15px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+    color: rgba(243, 244, 246, 0.651);
+}

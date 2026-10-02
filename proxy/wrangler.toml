@@ -1,0 +1,10 @@
+name = "broadcaster-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Agent wstrzykiwany do proxowanych stron trzymamy w osobnym pliku i wciągamy
+# jako tekst, żeby dało się go czytać i lintować jak zwykły JavaScript.
+[[rules]]
+type = "Text"
+globs = ["**/agent.js"]
+fallthrough = true

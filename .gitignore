@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# Xcode
+.derived/
+DerivedData/
+build/
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Cloudflare
+.wrangler/
+
+# Tizen package output
+*.wgt
+.manifest.tmp
+tv-app/author-signature.xml
+tv-app/signature*.xml
+tv-app/.buildResult/

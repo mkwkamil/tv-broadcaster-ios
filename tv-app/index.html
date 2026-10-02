@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <title>Broadcaster</title>
+    <script type="text/javascript" src="$WEBAPIS/webapis/webapis.js"></script>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Ekran parowania -->
+        <section id="screen-pairing" class="screen active">
+            <header class="header">
+                <div class="brand">
+                    <img class="logo" src="icon.png" alt="">
+                    <h1>Broadcaster</h1>
+                </div>
+            </header>
+            <div class="pairing-content">
+                <div class="room-box">
+                    <p class="label">Kod pokoju</p>
+                    <div id="room-code" class="room-code">CAST01</div>
+                    <div id="status-pill" class="status-pill is-off">
+                        <span class="status-dot" aria-hidden="true"></span>
+                        <span id="qr-hint">Niepołączono</span>
+                    </div>
+                </div>
+            </div>
+            <div id="queue-preview" class="queue-preview hidden">
+                <p class="label">W kolejce</p>
+                <ul id="queue-list" class="queue-list"></ul>
+            </div>
+            <footer class="pairing-footer">
+                Otwórz film w aplikacji na iPhonie i wybierz Uruchom.
+            </footer>
+        </section>
+
+        <!-- Ekran odtwarzacza -->
+        <section id="screen-player" class="screen">
+            <div id="player-container" class="player-container">
+                <object id="av-player" type="application/avplayer" width="0" height="0" class="hidden"></object>
+                <video id="html5-player" class="html5-player hidden" playsinline></video>
+            </div>
+            <div id="player-overlay" class="player-overlay">
+                <div class="player-progress" aria-hidden="true">
+                    <div id="player-progress-fill" class="player-progress-fill"></div>
+                </div>
+                <div id="player-controls" class="player-controls">
+                    <span id="player-time">00:00 / 00:00</span>
+                    <span id="player-status" class="player-status hidden"></span>
+                </div>
+                <div id="player-hint" class="player-hint">
+                    OK: play/pauza &nbsp;|&nbsp; ◀ ▶: przewijanie &nbsp;|&nbsp; Return: wyjście
+                </div>
+            </div>
+        </section>
+
+        <audio id="error-sound" src="media/error-sound.mp3" preload="auto"></audio>
+        <div id="toast" class="toast" role="status">
+            <span id="toast-icon" class="toast-icon" aria-hidden="true"></span>
+            <div class="toast-copy">
+                <p id="toast-title" class="toast-title"></p>
+                <p id="toast-message" class="toast-message"></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/resolve/utils.js"></script>
+    <script src="js/resolve/index.js"></script>
+    <script src="js/channel.js"></script>
+    <script src="js/pairing.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/keys.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

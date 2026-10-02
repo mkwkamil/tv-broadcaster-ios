@@ -1,0 +1,18 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomCode": {
+        ".read": true,
+        ".write": true,
+        "queue": {
+          "$itemId": {
+            ".validate": "newData.hasChildren(['url', 'timestamp']) && newData.child('url').isString() && newData.child('url').val().length > 0 && newData.child('url').val().length < 4096 && newData.child('timestamp').isNumber()"
+          }
+        },
+        "status": {
+          ".validate": "newData.hasChildren(['state', 'timestamp']) && newData.child('state').isString() && newData.child('timestamp').isNumber()"
+        }
+      }
+    }
+  }
+}
